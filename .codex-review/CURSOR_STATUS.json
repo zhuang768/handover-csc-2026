@@ -1,19 +1,17 @@
 {
   "status": "ready_for_review",
-  "round": 3,
-  "updatedAt": "2026-10-04T00:55:00+08:00",
+  "round": 4,
+  "updatedAt": "2026-10-04T01:50:19+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "f3fa696115a86f98995686b6bb934b90492133ab",
+  "gitHead": "6b7b7cd734e9af06785d7f854d75dc8f3a160c6f",
   "completedRequirements": [
-    "R03 seed failure rolls back; a later demo login rebuilds the school",
-    "R03 parallel first demo logins all receive a complete seed",
-    "R03 losing accept/decline/cancel/complete writes no extra timeline, audit, or notification",
-    "R03 submit rechecks lesson occupancy inside the Pending update",
-    "R03 Traditional Chinese layout is not capped at 38em",
-    "R03 next lesson uses the handover for that same lesson",
-    "R03 detail inputs reset when the request id changes",
-    "R03C installable web app: manifest, PNG icons, home-screen guide, safe area, offline page",
-    "Service worker caches only the public offline page, icons, and manifest",
+    "R04 complete legacy school stays usable and keeps every established non-meta row",
+    "R04 partial legacy school rebuilds lessons without rewriting edited demo profiles, real accounts, or sessions",
+    "Latest independent suite is 85 passed, 0 failed, including the row-preservation case",
+    "Phone width has one bottom navigation plus More; simple view applies only to the signed-in student",
+    "401 leaves the signed-in shell; session check failure is not a normal sign-out",
+    "Built worker GET /offline.html returned 200 with no Location; offline reload showed the public bilingual page",
+    "Service worker probe at the product SHA passed 28 of 28",
     "Approved handbook colors and type remain"
   ],
   "checks": [
@@ -45,31 +43,31 @@
       "command": "npm run build",
       "cwd": "handover",
       "exitCode": 0,
-      "summary": "vinext build completed; dist/client/sw.js is JavaScript"
-    },
-    {
-      "command": "npm run db:generate",
-      "cwd": "handover",
-      "exitCode": 0,
-      "summary": "no schema changes"
-    },
-    {
-      "command": "HANDOVER_PERSIST=/tmp/handover-r03-empty npm run db:migrate",
-      "cwd": "handover",
-      "exitCode": 0,
-      "summary": "empty D1 applied 0000 and 0001; second run had no migrations"
+      "summary": "vinext build completed; assets.html_handling is none"
     },
     {
       "command": "npm run test:e2e",
       "cwd": "handover",
       "exitCode": 0,
-      "summary": "6 passed. Desktop Chromium at 390, 768, and 1440. Screenshots in handover/docs/screenshots."
+      "summary": "8 passed. Logged-in roles at 390, 768, and 1440. PNG 05 and 06 are 390 CSS pixels wide."
+    },
+    {
+      "command": "npm run test:e2e:built",
+      "cwd": "handover",
+      "exitCode": 0,
+      "summary": "1 passed. Built worker offline.html was 200 with no redirect. Offline reload showed the public page. The failed offline profile edit was not saved after reconnect."
     },
     {
       "command": "node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts",
       "cwd": "repo root",
       "exitCode": 0,
-      "summary": "82 passed, 0 failed. Codex test files were not edited."
+      "summary": "85 passed, 0 failed, 0 skipped. Codex assertions were not edited."
+    },
+    {
+      "command": "node .codex-review/sw-behavior-probe.mjs --stable-sha 6b7b7cd734e9af06785d7f854d75dc8f3a160c6f",
+      "cwd": "repo root",
+      "exitCode": 0,
+      "summary": "28 passed, 0 failed. Public offline path remains /offline.html."
     }
   ],
   "publicUrl": null,
@@ -81,7 +79,8 @@
     "Noto Sans TC in the app is a UI-string subset. Longer teacher text uses the next installed Traditional Chinese font.",
     "Product license is unspecified. Font and icon notices are in CREDITS.md.",
     "No public deployment and no GitHub push in this round.",
-    "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof."
+    "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof.",
+    "The update button waits for controllerchange, but a browser run with two service-worker versions was not executed."
   ],
   "blockers": []
 }
