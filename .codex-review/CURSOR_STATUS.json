@@ -1,9 +1,9 @@
 {
-  "status": "delivery_in_progress",
+  "status": "accepted",
   "round": 6,
-  "updatedAt": "2026-10-04T03:06:00+08:00",
+  "updatedAt": "2026-10-04T03:12:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "77a5faf5653d908bbe5a02094a7004856063d1bb",
+  "gitHead": "87bfc8a1de1692c0d43e15679dc9c88bafa9b614",
   "completedRequirements": [
     "R05 atomic legacy repair preserves established lessons, ordinary accounts, sessions and relations",
     "Exact known demo material stub repaired without changing custom URLs",
@@ -26,9 +26,7 @@
     "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof.",
     "Root verified a real public v1-to-v3 waiting-worker update with a dirty profile guard and retained session. Five pending-write cases use a deliberate waiting-worker UI seam and real HTTP; physical-phone installation remains untested."
   ],
-  "blockers": [
-    "Final documentation/source synchronization, focused GitHub PR/CI and exact-source publication pending"
-  ],
+  "blockers": [],
   "repairOwner": "Codex",
   "reason": "Cursor usage exhausted before R05 product edits; Codex implements the existing repair scope.",
   "historicalR04Checks": [
@@ -121,10 +119,20 @@
     {
       "command": "native Cua actual publishedv1-to-v3 waiting-worker update",
       "summary": "Dirtyprofile disables reload; restoring field enables explicit reload; session retained, banner gone"
+    },
+    {
+      "command": "GitHub push and PR CI on accepted87bfc8a product/doc source",
+      "exitCode": 0,
+      "summary": "Both succeeded; npmci/format/lint/types/product34/dev9/built6; reviewer-only receipt commits do not change app tree"
+    },
+    {
+      "command": "final source/archive checker + publicHTTP at version4",
+      "exitCode": 0,
+      "summary": "Exact app tree,8public assets,5migration files matched; canonical200/noLocation/textHTML and private anonymous401no-store passed"
     }
   ],
-  "appTree": "6b3d42b3d6b30c1247183d54f062603766518005",
-  "githubCiUrl": "https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969",
+  "appTree": "aabf347075416d971287e0733d3f8c0f81418c81",
+  "githubCiUrl": "https://github.com/zhuang768/handover-csc-2026/actions/runs/37146879530",
   "historicalR05Checks": [
     {
       "command": "npm test",
@@ -161,5 +169,15 @@
       "exitCode": 0,
       "summary": "Conflict, lifecycle, student privacy/preparation, restoration and logout passed"
     }
-  ]
+  ],
+  "pullRequestUrl": "https://github.com/zhuang768/handover-csc-2026/pull/1",
+  "release": {
+    "siteSourceSha": "a465f8044ed696427d06a9db7b23aa6782a9182d",
+    "version": 4,
+    "versionId": "appgprj_6ac11cc258608191ba6f05fcd6e031fb~appgver_5327244373208191ae83bb642f9ff220",
+    "deploymentId": "appgdep_6ac15357a1e88191b6f99e55d3a04887",
+    "status": "succeeded",
+    "envRevision": 1,
+    "archiveSha256": "87d71e1ab7564107d35e6347d8d24b92b005846986f399adfca0dc503ad65e1f"
+  }
 }
