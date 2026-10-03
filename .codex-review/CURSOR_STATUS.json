@@ -1,77 +1,60 @@
 {
   "status": "ready_for_review",
-  "round": 1,
-  "updatedAt": "2026-10-03T23:45:00+08:00",
+  "round": 2,
+  "updatedAt": "2026-10-04T00:20:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "9f2d0389bfc04deb73959b97a165cabc00989125",
+  "gitHead": "73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a",
   "completedRequirements": [
-    "AUTH-01",
-    "AUTH-02",
-    "AUTH-03",
-    "AUTH-04",
-    "AUTH-05",
-    "ACL-01",
-    "ACL-02",
-    "ACL-03",
-    "ACL-04",
-    "SEC-01",
-    "SEC-02",
-    "DATA-01",
-    "DATA-02",
-    "SCHED-01",
-    "SCHED-03",
-    "REQ-01",
-    "REQ-02",
-    "REQ-03",
-    "HAND-01",
-    "HAND-02",
-    "HAND-03",
-    "STATE-01",
-    "STATE-02",
-    "STATE-03",
-    "STATE-04",
-    "STUD-01",
-    "STUD-02",
-    "NOTIF-01",
-    "NOTIF-02",
-    "NOTIF-03",
-    "ADMIN-01",
-    "ADMIN-02",
-    "ADMIN-03",
-    "UX-01",
-    "UX-05",
-    "CHECK-01"
+    "R02 method guard: GET/HEAD actions return 405 and do not write",
+    "R02 accept/cancel/submit races are one batch with status checks",
+    "R02 accept rechecks occupancy; cancel restores original_* only if free",
+    "R02 student JSON omits reason, reasonCategory, teacherNotes, supplements, comments",
+    "R02 editor disables send until fields and a fresh conflict check pass",
+    "R02 detail opens with GET /api/requests/:id",
+    "R02 schema is Drizzle db/schema.ts plus drizzle/0000_init.sql; no request-time DDL",
+    "Visual R02B handbook: paper #F6F4EF, green #246B56, Manrope and Noto Sans TC subset"
   ],
   "checks": [
     {
-      "command": "node --experimental-strip-types --test tests/api.test.ts",
+      "command": "npm test",
+      "cwd": "handover",
       "exitCode": 0,
-      "summary": "24 passed, 0 failed. Includes handover gate, collision, authorization, recovery, demo reset, and concurrent slot reservation."
+      "summary": "24 passed"
     },
     {
       "command": "npm run lint",
+      "cwd": "handover",
       "exitCode": 0,
-      "summary": "eslint . passed"
+      "summary": "eslint passed"
     },
     {
       "command": "npm run format:check",
+      "cwd": "handover",
       "exitCode": 0,
-      "summary": "prettier check passed for server, shared, app, and tests"
+      "summary": "prettier passed"
     },
     {
       "command": "npm run typecheck",
+      "cwd": "handover",
       "exitCode": 0,
       "summary": "tsc --noEmit passed"
     },
     {
       "command": "npm run build",
+      "cwd": "handover",
       "exitCode": 0,
-      "summary": "vinext build completed with / and /api/:path*"
+      "summary": "vinext build completed"
     },
     {
-      "command": "curl POST http://127.0.0.1:5173/api/auth/demo",
+      "command": "node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts",
+      "cwd": "repo root",
       "exitCode": 0,
-      "summary": "Local dev server returned 200 and an HttpOnly session for the student demo. Browser then showed Mina 7A with 20 lessons this week and an empty Saturday."
+      "summary": "73 passed, 0 failed. Independent tests were not edited by this commit."
+    },
+    {
+      "command": "browser http://127.0.0.1:5173/",
+      "exitCode": 0,
+      "summary": "Student Sunday empty today plus next Monday lesson; primary button white on rgb(36,107,86); blank teacher send disabled in EN and zh-Hant; admin class and teacher filters; 390/768/1440 had no page-level horizontal overflow."
     }
   ],
   "publicUrl": null,
@@ -79,9 +62,10 @@
   "knownLimitations": [
     "No email provider: password reset uses a one-time recovery code stored only as a PBKDF2 hash.",
     "Day-before reminders are created when a workspace loads, not by a background push.",
-    "Viewport matrix 390/768/1440 and Playwright were not run.",
-    "No public deployment and no GitHub push in this round.",
-    "Subject templates are deterministic text, not a model call."
+    "Confirmed lessons can be marked Completed before the lesson time. The spec has no time gate.",
+    "Noto Sans TC in the app is a UI-string subset. Longer teacher text uses the next installed Traditional Chinese font.",
+    "Product license is unspecified. Font and icon notices are in CREDITS.md.",
+    "No public deployment and no GitHub push in this round."
   ],
   "blockers": []
 }
