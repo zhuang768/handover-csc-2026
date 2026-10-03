@@ -1,4 +1,3 @@
-import { SCHEMA_SQL } from "./schema-sql.ts";
 import type {
   AuditEvent,
   ChangeRequest,
@@ -345,19 +344,6 @@ async function readBody(request: Request) {
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(400, "VALIDATION_ERROR");
-  }
-}
-
-async function ensureSchema(db: D1Database) {
-  const existing = await one<{ name: string }>(
-    db,
-    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'users'`,
-  );
-  if (!existing) {
-    for (const statement of SCHEMA_SQL.split(";")) {
-      const sql = statement.trim();
-      if (sql) await db.prepare(sql).run();
-    }
   }
 }
 
@@ -1063,8 +1049,8 @@ async function presentRequest(
     targetRoom: row.target_room,
     recipientId: row.recipient_id,
     recipientName: lookup.user.get(row.recipient_id)?.name ?? "",
-    reasonCategory: row.reason_category,
-    reason: row.reason,
+    reasonCategory: studentView ? "" : row.reason_category,
+    reason: studentView ? "" : row.reason,
     handover,
     status: row.status,
     createdAt: row.created_at,
@@ -1228,7 +1214,11 @@ async function saveRequest(
   existing?: RequestRow,
 ) {
   const lesson = await lessonById(db, input.lessonId);
-  if (actor.role !== "admin" && lesson.base_teacher_id !== actor.id)
+  if (
+    actor.role !== "admin" &&
+    lesson.teacher_id !== actor.id &&
+    lesson.base_teacher_id !== actor.id
+  )
     throw new HttpError(403, "FORBIDDEN");
   if (input.kind === "move" && input.recipientId !== lesson.base_teacher_id)
     throw new HttpError(422, "VALIDATION_ERROR", ["recipientId"]);
@@ -1260,10 +1250,10 @@ async function saveRequest(
         lesson.id,
         lesson.class_id,
         lesson.subject,
-        lesson.base_teacher_id,
-        lesson.base_date,
-        lesson.base_period,
-        lesson.base_room,
+        lesson.teacher_id,
+        lesson.date,
+        lesson.period,
+        lesson.room,
         input.kind,
         input.targetDate,
         input.targetPeriod,
@@ -1293,17 +1283,17 @@ async function saveRequest(
     existing.status === "Confirmed"
   )
     throw new HttpError(409, "INVALID_STATE");
-  await run(
+  const saved = await run(
     db,
-    `UPDATE requests SET lesson_id = ?, class_id = ?, subject = ?, original_teacher_id = ?, original_date = ?, original_period = ?, original_room = ?, kind = ?, target_date = ?, target_period = ?, target_room = ?, recipient_id = ?, reason_category = ?, reason = ?, handover_json = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE requests SET lesson_id = ?, class_id = ?, subject = ?, original_teacher_id = ?, original_date = ?, original_period = ?, original_room = ?, kind = ?, target_date = ?, target_period = ?, target_room = ?, recipient_id = ?, reason_category = ?, reason = ?, handover_json = ?, updated_at = ? WHERE id = ? AND status IN ('Draft', 'Declined')`,
     [
       lesson.id,
       lesson.class_id,
       lesson.subject,
-      lesson.base_teacher_id,
-      lesson.base_date,
-      lesson.base_period,
-      lesson.base_room,
+      lesson.teacher_id,
+      lesson.date,
+      lesson.period,
+      lesson.room,
       input.kind,
       input.targetDate,
       input.targetPeriod,
@@ -1316,6 +1306,8 @@ async function saveRequest(
       existing.id,
     ],
   );
+  if ((saved.meta?.changes ?? 0) !== 1)
+    throw new HttpError(409, "INVALID_STATE");
   await audit(db, actor, "request.updated", existing.id, lesson.subject);
   return requestById(db, existing.id);
 }
@@ -1346,22 +1338,48 @@ async function submitRequest(db: D1Database, actor: UserRow, row: RequestRow) {
     const results = await db.batch([
       db
         .prepare(
-          `UPDATE requests SET status = 'Pending', updated_at = ? WHERE id = ? AND status IN ('Draft', 'Declined')`,
+          `UPDATE requests SET status = 'Pending', updated_at = ?
+           WHERE id = ? AND status IN ('Draft', 'Declined')
+             AND length(trim(json_extract(handover_json, '$.progress'))) > 0
+             AND length(trim(json_extract(handover_json, '$.plan'))) > 0
+             AND length(trim(json_extract(handover_json, '$.assessment'))) > 0
+             AND length(trim(json_extract(handover_json, '$.equipment'))) > 0
+             AND length(trim(json_extract(handover_json, '$.studentReminder'))) > 0
+             AND length(trim(json_extract(handover_json, '$.teacherNotes'))) > 0
+             AND EXISTS (
+               SELECT 1 FROM json_each(json_extract(handover_json, '$.materials'))
+               WHERE length(trim(json_extract(value, '$.title'))) > 0
+                 AND (
+                   json_extract(value, '$.url') LIKE 'https://%'
+                   OR json_extract(value, '$.url') LIKE 'http://%'
+                 )
+             )`,
         )
         .bind(stamp, row.id),
       db
         .prepare(
-          `INSERT INTO slot_locks (request_id, scope, scope_id, date, period) VALUES (?, 'class', ?, ?, ?)`,
+          `INSERT INTO slot_locks (request_id, scope, scope_id, date, period)
+           SELECT id, 'class', class_id, target_date, target_period FROM requests WHERE id = ? AND status = 'Pending'`,
         )
-        .bind(row.id, row.class_id, row.target_date, row.target_period),
+        .bind(row.id),
       db
         .prepare(
-          `INSERT INTO slot_locks (request_id, scope, scope_id, date, period) VALUES (?, 'teacher', ?, ?, ?)`,
+          `INSERT INTO slot_locks (request_id, scope, scope_id, date, period)
+           SELECT id, 'teacher', recipient_id, target_date, target_period FROM requests WHERE id = ? AND status = 'Pending'`,
         )
-        .bind(row.id, row.recipient_id, row.target_date, row.target_period),
+        .bind(row.id),
     ]);
-    if ((results[0]?.meta?.changes ?? 0) !== 1)
+    if ((results[0]?.meta?.changes ?? 0) !== 1) {
+      const current = await requestById(db, row.id);
+      if (current.status === "Draft" || current.status === "Declined") {
+        throw new HttpError(
+          422,
+          "INCOMPLETE_HANDOVER",
+          missingHandover(JSON.parse(current.handover_json) as Handover),
+        );
+      }
       throw new HttpError(409, "INVALID_STATE");
+    }
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(409, "SCHEDULE_CONFLICT");
@@ -1397,66 +1415,171 @@ async function respond(
     throw new HttpError(422, "VALIDATION_ERROR");
   const stamp = nowIso();
   if (decision === "decline") {
-    await run(db, `DELETE FROM slot_locks WHERE request_id = ?`, [row.id]);
-    await run(
-      db,
-      `UPDATE requests SET status = 'Declined', updated_at = ? WHERE id = ? AND status = 'Pending'`,
-      [stamp, row.id],
-    );
-    await run(
-      db,
-      `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, ?, 'declined', ?, ?)`,
-      [id(), row.id, actor.id, actor.name, comment.slice(0, 500), stamp],
-    );
-    await notify(
-      db,
-      row.original_teacher_id,
-      row.id,
-      "declined",
-      "Handover returned",
-    );
-    await audit(db, actor, "request.declined", row.id, comment.slice(0, 120));
+    const results = await db.batch([
+      db
+        .prepare(
+          `UPDATE requests SET status = 'Declined', updated_at = ? WHERE id = ? AND status = 'Pending'`,
+        )
+        .bind(stamp, row.id),
+      db
+        .prepare(
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+        )
+        .bind(row.id, row.id),
+      db
+        .prepare(
+          `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
+           SELECT ?, ?, ?, ?, 'declined', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+        )
+        .bind(
+          id(),
+          row.id,
+          actor.id,
+          actor.name,
+          comment.slice(0, 500),
+          stamp,
+          row.id,
+        ),
+      db
+        .prepare(
+          `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
+           SELECT ?, ?, ?, 'declined', 'Handover returned', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+        )
+        .bind(id(), row.original_teacher_id, row.id, stamp, row.id),
+      db
+        .prepare(
+          `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
+           SELECT ?, ?, 'request.declined', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+        )
+        .bind(
+          id(),
+          actor.name,
+          row.id,
+          stamp,
+          comment.slice(0, 120),
+          actor.is_demo,
+          row.id,
+        ),
+    ]);
+    if ((results[0]?.meta?.changes ?? 0) !== 1)
+      throw new HttpError(409, "INVALID_STATE");
     return requestById(db, row.id);
   }
-  const changed = await run(
-    db,
-    `UPDATE requests SET status = 'Confirmed', updated_at = ? WHERE id = ? AND status = 'Pending'`,
-    [stamp, row.id],
-  );
-  if ((changed.meta?.changes ?? 0) !== 1)
-    throw new HttpError(409, "INVALID_STATE");
-  await run(
-    db,
-    `UPDATE lessons SET teacher_id = ?, date = ?, period = ?, room = ? WHERE id = ?`,
-    [
-      row.recipient_id,
-      row.target_date,
-      row.target_period,
-      row.target_room,
-      row.lesson_id,
-    ],
-  );
-  await run(db, `DELETE FROM slot_locks WHERE request_id = ?`, [row.id]);
-  await run(
-    db,
-    `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, ?, 'confirmed', ?, ?)`,
-    [id(), row.id, actor.id, actor.name, comment.slice(0, 500), stamp],
-  );
-  await notify(
-    db,
-    row.original_teacher_id,
-    row.id,
-    "accepted",
-    "Handover accepted",
-  );
-  await notifyClass(
-    db,
-    row.class_id,
-    row.id,
-    "class_change",
-    "Your class timetable changed",
-  );
-  await audit(db, actor, "request.confirmed", row.id, row.subject);
+  try {
+    const results = await db.batch([
+      db
+        .prepare(
+          `UPDATE lessons SET teacher_id = ?, date = ?, period = ?, room = ?
+           WHERE id = ?
+             AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Pending')
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> lessons.id AND other.class_id = lessons.class_id AND other.date = ? AND other.period = ?
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> lessons.id AND other.teacher_id = ? AND other.date = ? AND other.period = ?
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM requests AS pending
+               WHERE pending.id <> ? AND pending.status = 'Pending' AND pending.target_date = ? AND pending.target_period = ?
+                 AND (pending.recipient_id = ? OR pending.class_id = lessons.class_id)
+             )`,
+        )
+        .bind(
+          row.recipient_id,
+          row.target_date,
+          row.target_period,
+          row.target_room,
+          row.lesson_id,
+          row.id,
+          row.target_date,
+          row.target_period,
+          row.recipient_id,
+          row.target_date,
+          row.target_period,
+          row.id,
+          row.target_date,
+          row.target_period,
+          row.recipient_id,
+        ),
+      db
+        .prepare(
+          `UPDATE requests SET status = 'Confirmed', updated_at = ?
+           WHERE id = ? AND status = 'Pending'
+             AND EXISTS (
+               SELECT 1 FROM lessons WHERE id = ? AND teacher_id = ? AND date = ? AND period = ? AND room = ?
+             )`,
+        )
+        .bind(
+          stamp,
+          row.id,
+          row.lesson_id,
+          row.recipient_id,
+          row.target_date,
+          row.target_period,
+          row.target_room,
+        ),
+      db
+        .prepare(
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+        )
+        .bind(row.id, row.id),
+      db
+        .prepare(
+          `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
+           SELECT ?, ?, ?, ?, 'confirmed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+        )
+        .bind(
+          id(),
+          row.id,
+          actor.id,
+          actor.name,
+          comment.slice(0, 500),
+          stamp,
+          row.id,
+        ),
+      db
+        .prepare(
+          `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
+           SELECT ?, ?, ?, 'accepted', 'Handover accepted', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+        )
+        .bind(id(), row.original_teacher_id, row.id, stamp, row.id),
+      db
+        .prepare(
+          `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
+           SELECT lower(hex(randomblob(16))), users.id, ?, 'class_change', 'Your class timetable changed', ?, 0
+           FROM users
+           WHERE users.role = 'student' AND users.class_id = ? AND users.active = 1
+             AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+        )
+        .bind(row.id, stamp, row.class_id, row.id),
+      db
+        .prepare(
+          `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
+           SELECT ?, ?, 'request.confirmed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+        )
+        .bind(
+          id(),
+          actor.name,
+          row.id,
+          stamp,
+          row.subject.slice(0, 300),
+          actor.is_demo,
+          row.id,
+        ),
+    ]);
+    if ((results[1]?.meta?.changes ?? 0) !== 1) {
+      const current = await requestById(db, row.id);
+      throw new HttpError(
+        409,
+        current.status === "Pending" ? "SCHEDULE_CONFLICT" : "INVALID_STATE",
+      );
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(409, "SCHEDULE_CONFLICT");
+  }
   return requestById(db, row.id);
 }
 
@@ -1471,45 +1594,169 @@ async function setStatus(
     throw new HttpError(422, "VALIDATION_ERROR");
   const stamp = nowIso();
   if (status === "Completed") {
-    if (row.status !== "Confirmed") throw new HttpError(409, "INVALID_STATE");
     if (actor.id !== row.original_teacher_id && actor.id !== row.recipient_id)
       throw new HttpError(403, "FORBIDDEN");
-    await run(
-      db,
-      `UPDATE requests SET status = 'Completed', updated_at = ? WHERE id = ? AND status = 'Confirmed'`,
-      [stamp, row.id],
-    );
-    await run(
-      db,
-      `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, ?, 'completed', ?, ?)`,
-      [id(), row.id, actor.id, actor.name, comment.slice(0, 500), stamp],
-    );
-    await audit(db, actor, "request.completed", row.id, row.subject);
+    const results = await db.batch([
+      db
+        .prepare(
+          `UPDATE requests SET status = 'Completed', updated_at = ? WHERE id = ? AND status = 'Confirmed'`,
+        )
+        .bind(stamp, row.id),
+      db
+        .prepare(
+          `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
+           SELECT ?, ?, ?, ?, 'completed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Completed')`,
+        )
+        .bind(
+          id(),
+          row.id,
+          actor.id,
+          actor.name,
+          comment.slice(0, 500),
+          stamp,
+          row.id,
+        ),
+      db
+        .prepare(
+          `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
+           SELECT ?, ?, 'request.completed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Completed')`,
+        )
+        .bind(
+          id(),
+          actor.name,
+          row.id,
+          stamp,
+          row.subject.slice(0, 300),
+          actor.is_demo,
+          row.id,
+        ),
+    ]);
+    if ((results[0]?.meta?.changes ?? 0) !== 1)
+      throw new HttpError(409, "INVALID_STATE");
     return requestById(db, row.id);
   }
   if (actor.role !== "admin" && actor.id !== row.original_teacher_id)
     throw new HttpError(403, "FORBIDDEN");
   if (!["Draft", "Pending", "Confirmed", "Declined"].includes(row.status))
     throw new HttpError(409, "INVALID_STATE");
-  if (row.status === "Confirmed") {
-    await run(
-      db,
-      `UPDATE lessons SET teacher_id = base_teacher_id, date = base_date, period = base_period, room = base_room WHERE id = ?`,
-      [row.lesson_id],
-    );
+  try {
+    const results = await db.batch([
+      db
+        .prepare(
+          `UPDATE lessons SET teacher_id = ?, date = ?, period = ?, room = ?
+           WHERE id = ?
+             AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> lessons.id AND other.class_id = lessons.class_id AND other.date = ? AND other.period = ?
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> lessons.id AND other.teacher_id = ? AND other.date = ? AND other.period = ?
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM requests AS pending
+               WHERE pending.id <> ? AND pending.status = 'Pending' AND pending.target_date = ? AND pending.target_period = ?
+                 AND (pending.class_id = lessons.class_id OR pending.recipient_id = ?)
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM slot_locks
+               WHERE slot_locks.request_id <> ? AND slot_locks.date = ? AND slot_locks.period = ?
+                 AND (
+                   (slot_locks.scope = 'class' AND slot_locks.scope_id = lessons.class_id)
+                   OR (slot_locks.scope = 'teacher' AND slot_locks.scope_id = ?)
+                 )
+             )`,
+        )
+        .bind(
+          row.original_teacher_id,
+          row.original_date,
+          row.original_period,
+          row.original_room,
+          row.lesson_id,
+          row.id,
+          row.original_date,
+          row.original_period,
+          row.original_teacher_id,
+          row.original_date,
+          row.original_period,
+          row.id,
+          row.original_date,
+          row.original_period,
+          row.original_teacher_id,
+          row.id,
+          row.original_date,
+          row.original_period,
+          row.original_teacher_id,
+        ),
+      db
+        .prepare(
+          `UPDATE requests SET status = 'Cancelled', updated_at = ?
+           WHERE id = ? AND (
+             status IN ('Draft', 'Pending', 'Declined')
+             OR (
+               status = 'Confirmed'
+               AND EXISTS (
+                 SELECT 1 FROM lessons
+                 WHERE id = ? AND teacher_id = ? AND date = ? AND period = ? AND room = ?
+               )
+             )
+           )`,
+        )
+        .bind(
+          stamp,
+          row.id,
+          row.lesson_id,
+          row.original_teacher_id,
+          row.original_date,
+          row.original_period,
+          row.original_room,
+        ),
+      db
+        .prepare(
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+        )
+        .bind(row.id, row.id),
+      db
+        .prepare(
+          `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
+           SELECT ?, ?, ?, ?, 'cancelled', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+        )
+        .bind(
+          id(),
+          row.id,
+          actor.id,
+          actor.name,
+          comment.slice(0, 500),
+          stamp,
+          row.id,
+        ),
+      db
+        .prepare(
+          `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
+           SELECT ?, ?, 'request.cancelled', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+        )
+        .bind(
+          id(),
+          actor.name,
+          row.id,
+          stamp,
+          row.subject.slice(0, 300),
+          actor.is_demo,
+          row.id,
+        ),
+    ]);
+    if ((results[1]?.meta?.changes ?? 0) !== 1) {
+      const current = await requestById(db, row.id);
+      throw new HttpError(
+        409,
+        current.status === "Confirmed" ? "SCHEDULE_CONFLICT" : "INVALID_STATE",
+      );
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(409, "SCHEDULE_CONFLICT");
   }
-  await run(db, `DELETE FROM slot_locks WHERE request_id = ?`, [row.id]);
-  await run(
-    db,
-    `UPDATE requests SET status = 'Cancelled', updated_at = ? WHERE id = ?`,
-    [stamp, row.id],
-  );
-  await run(
-    db,
-    `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, ?, 'cancelled', ?, ?)`,
-    [id(), row.id, actor.id, actor.name, comment.slice(0, 500), stamp],
-  );
-  await audit(db, actor, "request.cancelled", row.id, row.subject);
   return requestById(db, row.id);
 }
 
@@ -1543,8 +1790,9 @@ async function workspace(
   weekValue: string,
   classFilter: string,
   teacherFilter: string,
+  remindersOn = true,
 ): Promise<Workspace> {
-  await reminders(db, user);
+  if (remindersOn) await reminders(db, user);
   const monday = isSchoolDate(weekValue)
     ? mondayOnOrBefore(weekValue)
     : defaultSchoolMonday();
@@ -1636,7 +1884,12 @@ async function workspace(
   }));
   const scoped = user.role === "student" ? requests : requests;
   const stats: Stats = {
-    weekly: scoped.filter((item) => item.status !== "Cancelled").length,
+    weekly: scoped.filter(
+      (item) =>
+        item.status !== "Cancelled" &&
+        ((item.originalDate >= monday && item.originalDate <= friday) ||
+          (item.targetDate >= monday && item.targetDate <= friday)),
+    ).length,
     pending: scoped.filter((item) => item.status === "Pending").length,
     declined: scoped.filter((item) => item.status === "Declined").length,
     confirmed: scoped.filter(
@@ -1938,7 +2191,6 @@ export async function handleApi(
   config: ServiceConfig,
 ) {
   try {
-    await ensureSchema(db);
     await seedIfEmpty(db);
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "").replace(/^\/api/, "") || "/";
@@ -2065,6 +2317,11 @@ export async function handleApi(
       /^\/requests\/([^/]+)\/(submit|respond|status|supplements|todo|view)$/,
     );
     if (action) {
+      if (method !== "POST") {
+        const response = json({ error: "METHOD_NOT_ALLOWED" }, 405);
+        response.headers.set("allow", "POST");
+        return response;
+      }
       const row = await requestById(db, action[1]);
       if (action[2] === "submit") {
         if (user.role === "student") throw new HttpError(403, "FORBIDDEN");
@@ -2181,6 +2438,7 @@ export async function handleApi(
         url.searchParams.get("week") ?? "",
         "",
         "",
+        false,
       );
       return new Response(icsFor(data.lessons), {
         headers: {

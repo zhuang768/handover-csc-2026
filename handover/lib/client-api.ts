@@ -2,6 +2,7 @@ export class ApiError extends Error {
   constructor(
     public code: string,
     public fields: string[] = [],
+    public status = 0,
   ) {
     super(code);
     this.name = "ApiError";
@@ -26,6 +27,10 @@ export async function api<T>(
     fields?: string[];
   };
   if (!response.ok)
-    throw new ApiError(data.error ?? "NETWORK_ERROR", data.fields ?? []);
+    throw new ApiError(
+      data.error ?? "NETWORK_ERROR",
+      data.fields ?? [],
+      response.status,
+    );
   return data as T;
 }

@@ -1,0 +1,5 @@
+Class practice
+
+1. Copy the last worked example into your notebook.
+2. Change one number and solve it again.
+3. Write one sentence about what changed in the answer.

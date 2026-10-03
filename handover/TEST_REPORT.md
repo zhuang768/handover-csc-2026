@@ -33,7 +33,13 @@ npm run typecheck     # exit 0
 
 `npm run build` completed with exit 0 on 2026-10-03 (`vinext build`, route `/` and `/api/:path*`).
 
-## Not verified
+## Round 2, 2026-10-04
+
+`npm test` 24 passed. `npm run lint`, `format:check`, `typecheck`, and `build` exited 0. From the repo root, the Codex harness and independent API file exited 0 with 73 passed. Those files were not edited.
+
+Browser on `http://127.0.0.1:5173/`: student Mina on Sunday saw no class today and the next Monday lesson, with the covering teacher and reminder, and no teacher reason. Primary button computed style was white `rgb(255,255,255)` on green `rgb(36,107,86)`. Teacher Maya opened a blank handover; Send stayed disabled and the form named the missing fields in English and, after the language toggle, in Traditional Chinese. Demo buttons disabled while the login request was in flight. Admin Avery’s list had class and teacher filters plus date, status, and search. Widths 390, 768, and 1440 did not add a horizontal page scrollbar. 768 hid the bottom nav.
+
+Not claimed: a full keyboard tour of every field, reduced-motion computed style, or a production deploy.
 
 ## Local server smoke
 

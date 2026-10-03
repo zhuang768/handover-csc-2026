@@ -4,7 +4,7 @@
 
 ## Short version for Devpost
 
-OpenAI Codex assisted substantially with architecture, implementation, interface copy, synthetic demonstration scenarios, testing, debugging, research of official hackathon requirements, and submission materials. The human participant supplied the school problem, feature requirements, and the central rule that a class change requires a complete handover. Parallel AI agents supported focused development, research, and review. AI-generated code and copy require review; the participant must be able to explain the final workflow, permissions, conflict checks, and implementation decisions. Development assistance is separate from a runtime AI feature: no model-inference capability is claimed for the core product.
+OpenAI Codex and Cursor assisted with architecture, implementation, interface copy, synthetic demonstration scenarios, testing, debugging, research of official hackathon requirements, and submission materials. The human participant supplied the school problem, feature requirements, and the central rule that a class change requires a complete handover. Parallel AI agents supported focused development, research, and review. AI-generated code and copy require review; the participant must be able to explain the final workflow, permissions, conflict checks, and implementation decisions. Development assistance is separate from a runtime AI feature: no model-inference capability is claimed for the core product.
 
 ## Detailed contribution record
 
@@ -19,11 +19,11 @@ OpenAI Codex assisted substantially with architecture, implementation, interface
 
 ## Tools and assets
 
-- **AI assistant:** OpenAI Codex. Add any other actual assistant used; do not list a product merely because it was mentioned in the brief.
-- **Applied development/design skills:** `[CONFIRM: copy the actual skills used from DECISIONS.md; submission messaging used the brand skill.]`
+- **AI assistants:** OpenAI Codex and Cursor. Model names are not guessed beyond what each tool reports in its own session.
+- **Applied skills this round:** security-best-practices (React frontend notes), workers-best-practices (D1 batch, no request-time DDL), design-system tokens, redesign-existing-projects (dashboard, not a landing page), ui-styling (contrast and focus), vercel-react-best-practices (no extra waterfalls), ai-debt-detector (failed effects and silent calendar errors).
 - **Application stack:** React 19, TypeScript, Vinext, Cloudflare Workers, Cloudflare D1 / SQLite. Additional libraries and versions are documented in package.json and the lockfile.
 - **Demonstration data:** synthetic school classes, teachers, students, lessons, and handover scenarios. Confirm the final seed contains no real student personal or sensitive data.
-- **Prior assets:** `[CONFIRM: list any pre-hackathon source, starter project, templates, fonts, icons, datasets, or design material, including licenses and which parts were changed during the event.]`
+- **Prior assets:** Vinext / Cloudflare Sites starter already in this folder. Added fonts: Manrope and a UI subset of Noto Sans TC (OFL). Icons: lucide-react (ISC, with Feather MIT portions). See `CREDITS.md`. No stock photos.
 - **Sponsor services:** `[CONFIRM: list only the tools actually used, if any; Cloudflare deployment does not imply Render Workflows usage.]`
 
 ## Understanding and review checklist

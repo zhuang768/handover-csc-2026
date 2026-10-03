@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  ArrowRightLeft,
+  Ban,
+  Check,
+  CircleCheck,
+  Clock,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import { ApiError, api } from "@/lib/client-api";
 import {
   errorText,
@@ -19,7 +28,12 @@ import type {
   User,
   Workspace,
 } from "@/shared/types";
-import { addDays, defaultSchoolMonday, schoolToday } from "@/shared/time";
+import {
+  addDays,
+  defaultSchoolMonday,
+  mondayOnOrBefore,
+  schoolToday,
+} from "@/shared/time";
 import "./handover.css";
 
 type View =
@@ -83,9 +97,12 @@ function updatePrefs(patch: Partial<Prefs>) {
     prefsState.language === "zh" ? "zh-Hant" : "en";
   emitPrefs();
 }
-async function downloadCalendar() {
-  const response = await fetch("/api/calendar", { credentials: "same-origin" });
-  if (!response.ok) return;
+async function downloadCalendar(week: string) {
+  const response = await fetch(
+    `/api/calendar?week=${encodeURIComponent(week)}`,
+    { credentials: "same-origin" },
+  );
+  if (!response.ok) throw new Error("calendar");
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -133,7 +150,44 @@ export default function HandoverApp() {
   const [classId, setClassId] = useState("");
   const [teacherId, setTeacherId] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [focus, setFocus] = useState<ChangeRequest | null>(null);
+  const [seedLesson, setSeedLesson] = useState("");
   const [editing, setEditing] = useState(false);
+
+  async function openRequest(id: string) {
+    setError("");
+    try {
+      const data = await api<{ request: ChangeRequest }>(
+        `/api/requests/${id}`,
+        undefined,
+        "GET",
+      );
+      setFocus(data.request);
+      setSelected(id);
+      setEditing(false);
+      setView("requests");
+      const targetWeek = mondayOnOrBefore(data.request.targetDate);
+      if (targetWeek !== week) {
+        setWeek(targetWeek);
+        await load(targetWeek);
+      }
+    } catch (caught) {
+      setFocus(null);
+      setSelected(null);
+      setView("requests");
+      if (caught instanceof ApiError && caught.status === 401) {
+        setUser(null);
+        setWorkspace(null);
+      }
+      setError(
+        caught instanceof ApiError
+          ? caught.status === 404
+            ? translate(prefs.language, "unavailableHandover")
+            : errorText(prefs.language, caught.code)
+          : t("networkError"),
+      );
+    }
+  }
 
   async function load(
     nextWeek = week,
@@ -150,6 +204,12 @@ export default function HandoverApp() {
       setWorkspace(data);
       setUser(data.user);
     } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        setUser(null);
+        setWorkspace(null);
+        setError(errorText(prefs.language, caught.code));
+        return;
+      }
       setError(
         caught instanceof ApiError
           ? errorText(prefs.language, caught.code)
@@ -191,6 +251,11 @@ export default function HandoverApp() {
         onUser={(next) => {
           setUser(next);
           setWeek(defaultSchoolMonday());
+          setEditing(false);
+          setSelected(null);
+          setFocus(null);
+          setSeedLesson("");
+          setView("overview");
           void load(defaultSchoolMonday());
         }}
       />
@@ -205,7 +270,7 @@ export default function HandoverApp() {
     ["notifications", "notifications"],
     ["profile", "profile"],
   ];
-  if (user.role === "admin" && !prefs.simple)
+  if (user.role === "admin")
     nav.push(["users", "users"], ["audit", "audit"], ["impact", "impact"]);
 
   return (
@@ -251,6 +316,11 @@ export default function HandoverApp() {
               await api("/api/auth/logout", {});
               setUser(null);
               setWorkspace(null);
+              setEditing(false);
+              setSelected(null);
+              setFocus(null);
+              setSeedLesson("");
+              setView("overview");
             }}
           >
             {t("logout")}
@@ -302,10 +372,7 @@ export default function HandoverApp() {
               t={t}
               user={user}
               workspace={workspace}
-              onOpen={(id) => {
-                setSelected(id);
-                setView("requests");
-              }}
+              onOpen={(id) => void openRequest(id)}
             />
           ) : null}
           {view === "timetable" ? (
@@ -328,21 +395,32 @@ export default function HandoverApp() {
                 setTeacherId(value);
                 void load(week, classId, value);
               }}
-              onOpen={(id) => {
-                setSelected(id);
+              onOpen={(id) => void openRequest(id)}
+              onCreate={(lessonId) => {
+                setSeedLesson(lessonId);
+                setSelected(null);
+                setFocus(null);
+                setEditing(true);
                 setView("requests");
               }}
+              onCalendarError={(text) => setError(text)}
             />
           ) : null}
           {view === "requests" ? (
             <Requests
               t={t}
+              language={prefs.language}
               user={user}
               workspace={workspace}
               selected={selected}
+              focus={focus}
+              seedLesson={seedLesson}
               editing={editing}
               setEditing={setEditing}
-              onSelect={setSelected}
+              onSelect={(id) => {
+                setSelected(id);
+                if (!id) setFocus(null);
+              }}
               onMessage={setMessage}
               onReload={refresh}
             />
@@ -351,10 +429,7 @@ export default function HandoverApp() {
             <Notifications
               t={t}
               workspace={workspace}
-              onOpen={(id) => {
-                setSelected(id);
-                setView("requests");
-              }}
+              onOpen={(id) => void openRequest(id)}
               onReload={refresh}
               onMessage={setMessage}
             />
@@ -501,6 +576,57 @@ function AuthScreen({
             <p>{t("campus")}</p>
             <h1>{t("authPromise")}</h1>
             <p>{t("authDescription")}</p>
+            <svg className="auth-mark" viewBox="0 0 280 120" aria-hidden="true">
+              <rect
+                x="8"
+                y="16"
+                width="36"
+                height="72"
+                fill="none"
+                stroke="currentColor"
+              />
+              <rect
+                x="52"
+                y="16"
+                width="36"
+                height="72"
+                fill="none"
+                stroke="currentColor"
+              />
+              <rect
+                x="96"
+                y="16"
+                width="36"
+                height="72"
+                fill="none"
+                stroke="currentColor"
+              />
+              <rect
+                x="16"
+                y="28"
+                width="20"
+                height="14"
+                fill="currentColor"
+                opacity="0.25"
+              />
+              <rect x="60" y="48" width="20" height="14" fill="currentColor" />
+              <path d="M150 52 H210" stroke="currentColor" strokeWidth="2" />
+              <path
+                d="M202 44 L214 52 L202 60"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <rect
+                x="224"
+                y="28"
+                width="48"
+                height="48"
+                fill="none"
+                stroke="currentColor"
+              />
+              <path d="M236 52 H260 M248 40 V64" stroke="currentColor" />
+            </svg>
           </div>
           <p>{t("demoHint")}</p>
         </section>
@@ -655,6 +781,7 @@ function AuthScreen({
               <button
                 className="btn secondary"
                 type="button"
+                disabled={busy}
                 onClick={() => void demo("student")}
               >
                 {t("demoStudent")}
@@ -662,6 +789,7 @@ function AuthScreen({
               <button
                 className="btn secondary"
                 type="button"
+                disabled={busy}
                 onClick={() => void demo("teacher", 0)}
               >
                 {t("demoTeacher")}
@@ -669,6 +797,7 @@ function AuthScreen({
               <button
                 className="btn secondary"
                 type="button"
+                disabled={busy}
                 onClick={() => void demo("teacher", 1)}
               >
                 {t("demoRecipient")}
@@ -676,6 +805,7 @@ function AuthScreen({
               <button
                 className="btn secondary"
                 type="button"
+                disabled={busy}
                 onClick={() => void demo("admin")}
               >
                 {t("demoAdmin")}
@@ -713,6 +843,11 @@ function Overview({
     user.role === "student"
       ? workspace.requests.find((item) => item.status === "Confirmed")
       : (incoming[0] ?? drafts[0]);
+  const nextLesson = [...workspace.lessons]
+    .filter((lesson) => lesson.date >= today)
+    .sort((a, b) =>
+      a.date === b.date ? a.period - b.period : a.date.localeCompare(b.date),
+    )[0];
   return (
     <section className="stack">
       <div className="card notice">
@@ -730,7 +865,32 @@ function Overview({
           </button>
         ) : null}
       </div>
-      <div className="stats">
+      {user.role === "student" ? (
+        <article className="card stack next-lesson">
+          <h2>{nextLesson?.date === today ? t("today") : t("thisWeek")}</h2>
+          {nextLesson ? (
+            <LessonButton
+              lesson={nextLesson}
+              user={user}
+              t={t}
+              onOpen={onOpen}
+            />
+          ) : (
+            <p>
+              {t("noLessons")}. {t("noLessonsHint")}
+            </p>
+          )}
+          {next ? (
+            <p>
+              {next.originalTeacherName} → {next.recipientName} ·{" "}
+              {next.targetRoom}
+              <br />
+              {next.handover.studentReminder || "—"}
+            </p>
+          ) : null}
+        </article>
+      ) : null}
+      <div className="ledger">
         <article className="card">
           <span>{t("weekLessons")}</span>
           <strong>{workspace.lessons.length}</strong>
@@ -748,6 +908,22 @@ function Overview({
           <strong>{workspace.stats.confirmed}</strong>
         </article>
       </div>
+      {user.role === "teacher" && incoming.length ? (
+        <section className="card stack">
+          <h2>{t("awaitingMe")}</h2>
+          {incoming.map((item) => (
+            <button
+              className="btn ghost"
+              type="button"
+              key={item.id}
+              onClick={() => onOpen(item.id)}
+            >
+              {item.className} · {item.subject} · {item.targetDate}{" "}
+              {t("period")} {item.targetPeriod}
+            </button>
+          ))}
+        </section>
+      ) : null}
       <section className="card stack">
         <h2>{t("today")}</h2>
         {todays.length === 0 ? (
@@ -759,12 +935,38 @@ function Overview({
             <LessonButton
               key={lesson.id}
               lesson={lesson}
+              user={user}
               t={t}
               onOpen={onOpen}
             />
           ))
         )}
       </section>
+      {user.role === "student" ? (
+        <section className="card stack">
+          <h2>{t("thisWeek")}</h2>
+          {workspace.requests.length === 0 ? (
+            <p>{t("noFilteredRequests")}</p>
+          ) : (
+            workspace.requests.map((item) => (
+              <button
+                className="btn ghost"
+                type="button"
+                key={item.id}
+                onClick={() => onOpen(item.id)}
+              >
+                {item.subject}: {item.handover.studentReminder || "—"} ·{" "}
+                {
+                  item.handover.materials.filter((material) => material.title)
+                    .length
+                }{" "}
+                {t("materials")} · {t("assessment")}:{" "}
+                {item.handover.assessment || "—"}
+              </button>
+            ))
+          )}
+        </section>
+      ) : null}
       {user.role === "admin" && workspace.risks.length ? (
         <section className="card stack">
           <h2>{t("risks")}</h2>
@@ -784,28 +986,76 @@ function Overview({
   );
 }
 
+function StatusBadge({ status, label }: { status: string; label: string }) {
+  const Icon =
+    status === "Pending" || status === "changed"
+      ? Clock
+      : status === "Confirmed"
+        ? Check
+        : status === "Completed"
+          ? CircleCheck
+          : status === "Declined"
+            ? RotateCcw
+            : status === "Cancelled"
+              ? Ban
+              : status === "changed-move"
+                ? ArrowRightLeft
+                : Pencil;
+  return (
+    <span className={`badge ${status === "changed-move" ? "changed" : status}`}>
+      <Icon aria-hidden="true" size={14} strokeWidth={2} />
+      {label}
+    </span>
+  );
+}
+
 function LessonButton({
   lesson,
   t,
+  user,
   onOpen,
+  onCreate,
 }: {
   lesson: Lesson;
   t: (key: TextKey | ExtraKey) => string;
+  user: User;
   onOpen: (id: string) => void;
+  onCreate?: (lessonId: string) => void;
 }) {
+  const body = (
+    <>
+      <strong>{lesson.subject}</strong> · {lesson.className} · {t("period")}{" "}
+      {lesson.period} · {lesson.room}
+      <br />
+      {lesson.teacherName} · {lesson.date}
+      {lesson.changed ? (
+        <StatusBadge status="changed-move" label={t("changed")} />
+      ) : null}
+    </>
+  );
+  if (!lesson.requestId) {
+    return (
+      <article className="lesson lesson-static">
+        {body}
+        {onCreate && user.role === "teacher" && lesson.teacherId === user.id ? (
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => onCreate(lesson.id)}
+          >
+            {t("createFromLesson")}
+          </button>
+        ) : null}
+      </article>
+    );
+  }
   return (
     <button
       className={`lesson ${lesson.changed ? "changed" : ""}`}
       type="button"
-      onClick={() => lesson.requestId && onOpen(lesson.requestId)}
+      onClick={() => onOpen(lesson.requestId!)}
     >
-      <strong>{lesson.subject}</strong> · {t("period")} {lesson.period} ·{" "}
-      {lesson.room}
-      <br />
-      {lesson.teacherName} · {lesson.date}
-      {lesson.changed ? (
-        <span className="badge changed"> {t("changed")}</span>
-      ) : null}
+      {body}
     </button>
   );
 }
@@ -821,6 +1071,8 @@ function Timetable({
   onClass,
   onTeacher,
   onOpen,
+  onCreate,
+  onCalendarError,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   workspace: Workspace;
@@ -832,6 +1084,8 @@ function Timetable({
   onClass: (value: string) => void;
   onTeacher: (value: string) => void;
   onOpen: (id: string) => void;
+  onCreate: (lessonId: string) => void;
+  onCalendarError: (message: string) => void;
 }) {
   const days = [0, 1, 2, 3, 4].map((offset) => addDays(week, offset));
   const labels: TextKey[] = [
@@ -843,131 +1097,171 @@ function Timetable({
   ];
   const [day, setDay] = useState(schoolToday());
   const visibleDay = days.includes(day) ? day : days[0];
+  const incoming = workspace.requests.filter(
+    (item) => item.status === "Pending" && item.recipientId === user.id,
+  );
   return (
-    <section className="stack">
-      <div className="row">
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => onWeek(addDays(week, -7))}
-        >
-          {t("previousWeek")}
-        </button>
-        <strong>
-          {t("weekRange")} {week}
-        </strong>
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => onWeek(addDays(week, 7))}
-        >
-          {t("nextWeek")}
-        </button>
-        <button
-          className="btn ghost"
-          type="button"
-          onClick={() => void downloadCalendar()}
-        >
-          {t("calendar")}
-        </button>
-      </div>
-      {user.role === "admin" ? (
+    <section className={user.role === "teacher" ? "teacher-board" : "stack"}>
+      <div className="stack">
         <div className="row">
-          <label>
-            {t("class")}
-            <select
-              value={classId}
-              onChange={(event) => onClass(event.target.value)}
-            >
-              <option value="">{t("allClasses")}</option>
-              {workspace.classes.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t("teacher")}
-            <select
-              value={teacherId}
-              onChange={(event) => onTeacher(event.target.value)}
-            >
-              <option value="">{t("allTeachers")}</option>
-              {workspace.teachers.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : null}
-      <div className="row">
-        {days.map((date, index) => (
           <button
             className="btn ghost"
             type="button"
-            key={date}
-            aria-pressed={visibleDay === date}
-            onClick={() => setDay(date)}
+            onClick={() => onWeek(addDays(week, -7))}
           >
-            {t(labels[index])} {date.slice(5)}
+            {t("previousWeek")}
           </button>
-        ))}
-      </div>
-      <div className="day-list">
-        {workspace.lessons.filter((lesson) => lesson.date === visibleDay)
-          .length === 0 ? (
-          <p className="card">
-            {t("noLessons")}. {t("noLessonsHint")}
-          </p>
-        ) : (
-          workspace.lessons
-            .filter((lesson) => lesson.date === visibleDay)
-            .map((lesson) => (
-              <LessonButton
-                key={lesson.id}
-                lesson={lesson}
-                t={t}
-                onOpen={onOpen}
-              />
-            ))
-        )}
-      </div>
-      <div className="week-grid">
-        {days.map((date, index) => (
-          <section key={date} className="card stack">
-            <h2>
-              {t(labels[index])}
-              <br />
-              {date}
-            </h2>
-            {workspace.lessons
-              .filter((lesson) => lesson.date === date)
+          <strong>
+            {t("weekRange")} {week}
+          </strong>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => onWeek(addDays(week, 7))}
+          >
+            {t("nextWeek")}
+          </button>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() =>
+              void downloadCalendar(week).catch(() =>
+                onCalendarError(t("calendarFailed")),
+              )
+            }
+          >
+            {t("calendar")}
+          </button>
+        </div>
+        {user.role === "admin" ? (
+          <div className="row">
+            <label>
+              {t("class")}
+              <select
+                value={classId}
+                onChange={(event) => onClass(event.target.value)}
+              >
+                <option value="">{t("allClasses")}</option>
+                {workspace.classes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("teacher")}
+              <select
+                value={teacherId}
+                onChange={(event) => onTeacher(event.target.value)}
+              >
+                <option value="">{t("allTeachers")}</option>
+                {workspace.teachers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
+        <div className="row">
+          {days.map((date, index) => (
+            <button
+              className="btn ghost"
+              type="button"
+              key={date}
+              aria-pressed={visibleDay === date}
+              onClick={() => setDay(date)}
+            >
+              {t(labels[index])} {date.slice(5)}
+            </button>
+          ))}
+        </div>
+        <div className="day-list">
+          {workspace.lessons.filter((lesson) => lesson.date === visibleDay)
+            .length === 0 ? (
+            <p className="card">
+              {t("noLessons")}. {t("noLessonsHint")}
+            </p>
+          ) : (
+            workspace.lessons
+              .filter((lesson) => lesson.date === visibleDay)
               .map((lesson) => (
                 <LessonButton
                   key={lesson.id}
                   lesson={lesson}
+                  user={user}
                   t={t}
                   onOpen={onOpen}
+                  onCreate={onCreate}
                 />
-              ))}
-            {workspace.lessons.every((lesson) => lesson.date !== date) ? (
-              <p>{t("free")}</p>
-            ) : null}
-          </section>
-        ))}
+              ))
+          )}
+        </div>
+        <div className="week-grid">
+          {days.map((date, index) => (
+            <section key={date} className="card stack">
+              <h2>
+                {t(labels[index])}
+                <br />
+                {date}
+              </h2>
+              {workspace.lessons
+                .filter((lesson) => lesson.date === date)
+                .map((lesson) => (
+                  <LessonButton
+                    key={lesson.id}
+                    lesson={lesson}
+                    user={user}
+                    t={t}
+                    onOpen={onOpen}
+                    onCreate={onCreate}
+                  />
+                ))}
+              {workspace.lessons.every((lesson) => lesson.date !== date) ? (
+                <p>{t("free")}</p>
+              ) : null}
+            </section>
+          ))}
+        </div>
       </div>
+      {user.role === "teacher" ? (
+        <aside className="card stack">
+          <h2>{t("awaitingMe")}</h2>
+          {incoming.length === 0 ? (
+            <p>{t("noFilteredRequests")}</p>
+          ) : (
+            incoming.map((item) => (
+              <button
+                className="btn ghost"
+                type="button"
+                key={item.id}
+                onClick={() => onOpen(item.id)}
+              >
+                <StatusBadge
+                  status={item.status}
+                  label={t(item.status as TextKey)}
+                />
+                <br />
+                {item.className} · {item.subject}
+              </button>
+            ))
+          )}
+        </aside>
+      ) : null}
     </section>
   );
 }
 
 function Requests({
   t,
+  language,
   user,
   workspace,
   selected,
+  focus,
+  seedLesson,
   editing,
   setEditing,
   onSelect,
@@ -975,9 +1269,12 @@ function Requests({
   onReload,
 }: {
   t: (key: TextKey | ExtraKey) => string;
+  language: Language;
   user: User;
   workspace: Workspace;
   selected: string | null;
+  focus: ChangeRequest | null;
+  seedLesson: string;
   editing: boolean;
   setEditing: (value: boolean) => void;
   onSelect: (id: string | null) => void;
@@ -987,6 +1284,8 @@ function Requests({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [date, setDate] = useState("");
+  const [classFilter, setClassFilter] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("");
   const filtered = workspace.requests.filter((item) => {
     const haystack =
       `${item.subject} ${item.className} ${item.originalTeacherName} ${item.recipientName}`.toLowerCase();
@@ -994,10 +1293,18 @@ function Requests({
     if (status && item.status !== status) return false;
     if (date && item.originalDate !== date && item.targetDate !== date)
       return false;
+    if (classFilter && item.className !== classFilter) return false;
+    if (
+      teacherFilter &&
+      item.originalTeacherName !== teacherFilter &&
+      item.recipientName !== teacherFilter
+    )
+      return false;
     return true;
   });
-  const current =
+  const listed =
     workspace.requests.find((item) => item.id === selected) ?? null;
+  const current = listed ?? (focus?.id === selected ? focus : null);
   return (
     <section className="stack">
       <div className="filters">
@@ -1037,6 +1344,38 @@ function Requests({
             onChange={(event) => setDate(event.target.value)}
           />
         </label>
+        {user.role === "admin" ? (
+          <>
+            <label>
+              {t("class")}
+              <select
+                value={classFilter}
+                onChange={(event) => setClassFilter(event.target.value)}
+              >
+                <option value="">{t("allClasses")}</option>
+                {workspace.classes.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("teacher")}
+              <select
+                value={teacherFilter}
+                onChange={(event) => setTeacherFilter(event.target.value)}
+              >
+                <option value="">{t("allTeachers")}</option>
+                {workspace.teachers.map((item) => (
+                  <option key={item.id} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : null}
         {user.role === "teacher" ? (
           <button
             className="btn"
@@ -1052,10 +1391,13 @@ function Requests({
       </div>
       {editing ? (
         <Editor
+          key={`${current?.id ?? "new"}:${seedLesson}`}
           t={t}
+          language={language}
           user={user}
           workspace={workspace}
           existing={current}
+          seedLesson={seedLesson}
           onClose={() => setEditing(false)}
           onMessage={onMessage}
           onReload={onReload}
@@ -1070,9 +1412,10 @@ function Requests({
             <strong>
               {item.subject} · {item.className}
             </strong>
-            <span className={`badge ${item.status}`}>
-              {t(item.status as TextKey)}
-            </span>
+            <StatusBadge
+              status={item.status}
+              label={t(item.status as TextKey)}
+            />
           </div>
           <p>
             {item.originalTeacherName} → {item.recipientName}
@@ -1096,6 +1439,7 @@ function Requests({
       {current && !editing ? (
         <Detail
           t={t}
+          language={language}
           user={user}
           request={current}
           onEdit={() => setEditing(true)}
@@ -1107,19 +1451,40 @@ function Requests({
   );
 }
 
+function handoverGaps(value: Handover) {
+  const fields: string[] = [];
+  if (!value.progress.trim()) fields.push("progress");
+  if (!value.plan.trim()) fields.push("plan");
+  if (!value.assessment.trim()) fields.push("assessment");
+  if (!value.equipment.trim()) fields.push("equipment");
+  if (!value.studentReminder.trim()) fields.push("studentReminder");
+  if (!value.teacherNotes?.trim()) fields.push("teacherNotes");
+  if (
+    !value.materials.some(
+      (item) => item.title.trim() && /^https?:\/\/\S+$/i.test(item.url.trim()),
+    )
+  )
+    fields.push("materials");
+  return fields;
+}
+
 function Editor({
   t,
+  language,
   user,
   workspace,
   existing,
+  seedLesson,
   onClose,
   onMessage,
   onReload,
 }: {
   t: (key: TextKey | ExtraKey) => string;
+  language: Language;
   user: User;
   workspace: Workspace;
   existing: ChangeRequest | null;
+  seedLesson: string;
   onClose: () => void;
   onMessage: (value: string) => void;
   onReload: () => Promise<void>;
@@ -1131,7 +1496,7 @@ function Editor({
     (lesson) => !lesson.changed && lesson.teacherId === user.id,
   );
   const [lessonId, setLessonId] = useState(
-    existing?.lessonId || mine[0]?.id || "",
+    existing?.lessonId || seedLesson || mine[0]?.id || "",
   );
   const lesson = workspace.lessons.find((item) => item.id === lessonId);
   const [kind, setKind] = useState<"move" | "substitute">(
@@ -1154,9 +1519,15 @@ function Editor({
   const [handover, setHandover] = useState<Handover>(
     existing?.handover || emptyHandover(),
   );
-  const [report, setReport] = useState<ConflictResult | null>(null);
+  const [checked, setChecked] = useState<{
+    key: string;
+    report: ConflictResult;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [draftId, setDraftId] = useState(existing?.id ?? "");
   const [error, setError] = useState("");
   const [missing, setMissing] = useState<string[]>([]);
+  const checkGeneration = useRef(0);
 
   function input(): RequestInput {
     return {
@@ -1171,44 +1542,125 @@ function Editor({
       handover,
     };
   }
-  async function check() {
-    setReport(await api<ConflictResult>("/api/conflicts", input()));
-  }
+  const gaps = handoverGaps(handover);
+  const arrangementReady = Boolean(
+    lessonId &&
+    targetDate &&
+    targetPeriod &&
+    targetRoom.trim() &&
+    reason.trim() &&
+    (kind === "move" || recipientId),
+  );
+  const scheduleKey = [
+    lessonId,
+    kind,
+    targetDate,
+    targetPeriod,
+    targetRoom,
+    recipientId,
+  ].join("|");
+  const [failedKey, setFailedKey] = useState("");
+  const report = checked?.key === scheduleKey ? checked.report : null;
+  const checking = arrangementReady && !report && failedKey !== scheduleKey;
+  useEffect(() => {
+    if (!arrangementReady) return;
+    const generation = checkGeneration.current + 1;
+    checkGeneration.current = generation;
+    const key = scheduleKey;
+    const timer = setTimeout(() => {
+      void api<ConflictResult>("/api/conflicts", {
+        lessonId,
+        kind,
+        targetDate,
+        targetPeriod: Number(targetPeriod),
+        targetRoom,
+        recipientId: kind === "move" ? user.id : recipientId,
+        reasonCategory,
+        reason,
+        handover,
+      })
+        .then((next) => {
+          if (checkGeneration.current !== generation) return;
+          setChecked({ key, report: next });
+        })
+        .catch(() => {
+          if (checkGeneration.current !== generation) return;
+          setFailedKey(key);
+          setError(translate(language, "networkError"));
+        });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [
+    arrangementReady,
+    scheduleKey,
+    lessonId,
+    kind,
+    targetDate,
+    targetPeriod,
+    targetRoom,
+    recipientId,
+    reasonCategory,
+    reason,
+    handover,
+    user.id,
+    language,
+  ]);
   async function save(submit: boolean) {
     setError("");
+    setBusy(true);
     try {
       const payload = input();
-      const saved = existing
+      const idToUse = draftId;
+      const saved = idToUse
         ? await api<{ request: ChangeRequest }>(
-            `/api/requests/${existing.id}`,
+            `/api/requests/${idToUse}`,
             payload,
             "PATCH",
           )
         : await api<{ request: ChangeRequest }>("/api/requests", payload);
+      setDraftId(saved.request.id);
       if (submit) await api(`/api/requests/${saved.request.id}/submit`, {});
       onMessage(submit ? t("sent") : t("savedDraft"));
       onClose();
       await onReload();
     } catch (caught) {
       if (caught instanceof ApiError) {
+        if (caught.status === 401) {
+          setError(errorText(language, caught.code));
+        }
         setMissing(caught.fields);
-        setError(errorText("en", caught.code));
+        setError(errorText(language, caught.code));
       } else setError(t("networkError"));
+    } finally {
+      setBusy(false);
     }
+  }
+  function chooseLesson(id: string) {
+    setLessonId(id);
+    const next = workspace.lessons.find((item) => item.id === id);
+    if (next) {
+      setTargetDate(next.date);
+      setTargetPeriod(next.period);
+      setTargetRoom(next.room);
+    }
+    setChecked(null);
   }
   function template() {
     const subject = lesson?.subject || "Lesson";
     setHandover({
       ...handover,
-      progress: `${subject}, current section`,
-      plan: `Open with a review, teach the next example, then check understanding.`,
+      progress: `${subject}: the class has finished the previous worked example.`,
+      plan: `Review the last ${subject} example, teach the next one, then ask students to finish the practice file.`,
       materials: [
-        { title: `${subject} worksheet`, url: "https://example.org/worksheet" },
+        {
+          title: `${subject} practice`,
+          url: `${window.location.origin}/worksheets/class-practice.txt`,
+        },
       ],
-      assessment: "Finish the class exercise before the next lesson.",
-      equipment: "Board and projector",
-      studentReminder: "Bring the usual subject materials.",
-      teacherNotes: "Watch for students who need the example repeated.",
+      assessment: `Students finish the ${subject} practice before the next lesson.`,
+      equipment: "Board and one shared projector",
+      studentReminder: `Bring the ${subject} notebook and a pen.`,
+      teacherNotes: `Repeat the ${subject} example for anyone who missed the first pass.`,
     });
   }
   return (
@@ -1230,11 +1682,12 @@ function Editor({
         {t("selectLesson")}
         <select
           value={lessonId}
-          onChange={(event) => setLessonId(event.target.value)}
+          onChange={(event) => chooseLesson(event.target.value)}
         >
           {(mine.length ? mine : choices).map((item) => (
             <option key={item.id} value={item.id}>
-              {item.date} · {item.subject} · {t("period")} {item.period}
+              {item.className} · {item.date} · {item.subject} · {t("period")}{" "}
+              {item.period}
             </option>
           ))}
         </select>
@@ -1395,9 +1848,17 @@ function Editor({
           {t("addMaterial")}
         </button>
       </fieldset>
-      <button className="btn ghost" type="button" onClick={() => void check()}>
-        {t("checking")}
-      </button>
+      <p>
+        {checking
+          ? t("checkingSchedule")
+          : gaps.length
+            ? `${t("sendBlocked")} ${gaps.map((field) => t(field as TextKey)).join(", ")}`
+            : report?.conflicts.length
+              ? t("conflictError")
+              : report
+                ? t("noConflicts")
+                : t("sendBlocked")}
+      </p>
       {report ? (
         <div className="notice">
           {report.conflicts.length ? (
@@ -1430,10 +1891,22 @@ function Editor({
         </div>
       ) : null}
       <div className="row">
-        <button className="btn ghost" type="submit">
+        <button className="btn ghost" type="submit" disabled={busy}>
           {t("saveDraft")}
         </button>
-        <button className="btn" type="button" onClick={() => void save(true)}>
+        <button
+          className="btn"
+          type="button"
+          disabled={
+            busy ||
+            checking ||
+            !arrangementReady ||
+            gaps.length > 0 ||
+            !report ||
+            report.conflicts.length > 0
+          }
+          onClick={() => void save(true)}
+        >
           {t("sendRequest")}
         </button>
         <button className="btn ghost" type="button" onClick={onClose}>
@@ -1446,6 +1919,7 @@ function Editor({
 
 function Detail({
   t,
+  language,
   user,
   request,
   onEdit,
@@ -1453,6 +1927,7 @@ function Detail({
   onReload,
 }: {
   t: (key: TextKey | ExtraKey) => string;
+  language: Language;
   user: User;
   request: ChangeRequest;
   onEdit: () => void;
@@ -1462,6 +1937,13 @@ function Detail({
   const [comment, setComment] = useState("");
   const [supplement, setSupplement] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    document.getElementById("handover-detail")?.focus();
+    if (user.role !== "student") return;
+    if (request.status !== "Confirmed" && request.status !== "Completed")
+      return;
+    void api(`/api/requests/${request.id}/view`, {});
+  }, [request.id, request.status, user.role]);
   async function act(path: string, body: unknown, method = "POST") {
     setError("");
     try {
@@ -1471,7 +1953,7 @@ function Detail({
     } catch (caught) {
       setError(
         caught instanceof ApiError
-          ? errorText("en", caught.code)
+          ? errorText(language, caught.code)
           : t("networkError"),
       );
     }
@@ -1482,12 +1964,13 @@ function Detail({
   const canRespond =
     user.id === request.recipientId && request.status === "Pending";
   return (
-    <article className="card stack" id="handover-detail">
+    <article className="card stack" id="handover-detail" tabIndex={-1}>
       <div className="row">
         <h2>{request.subject}</h2>
-        <span className={`badge ${request.status}`}>
-          {t(request.status as TextKey)}
-        </span>
+        <StatusBadge
+          status={request.status}
+          label={t(request.status as TextKey)}
+        />
       </div>
       {error ? (
         <p className="notice error" role="alert">
@@ -1502,9 +1985,14 @@ function Detail({
         {t("target")}: {request.recipientName}, {request.targetDate},{" "}
         {t("period")} {request.targetPeriod}, {request.targetRoom}
       </p>
-      <p>
-        {t("reason")}: {request.reason}
-      </p>
+      {user.role !== "student" && request.reason ? (
+        <p>
+          {t("reason")}: {request.reason}
+        </p>
+      ) : null}
+      {user.role === "student" && request.status === "Cancelled" ? (
+        <p>{t("unavailableHandover")}</p>
+      ) : null}
       <h3>{t("handover")}</h3>
       <p>
         {t("progress")}: {request.handover.progress || "—"}
@@ -1742,10 +2230,13 @@ function Notifications({
           className="lesson"
           type="button"
           key={item.id}
-          onClick={async () => {
-            await api("/api/notifications/read", { id: item.id });
-            onOpen(item.requestId);
-            await onReload();
+          onClick={() => {
+            void api("/api/notifications/read", { id: item.id })
+              .catch(() => onMessage(t("networkError")))
+              .finally(() => {
+                onOpen(item.requestId);
+                void onReload();
+              });
           }}
         >
           <strong>{item.title}</strong>
@@ -2037,11 +2528,26 @@ function Impact({
     learningMinutesProtected: number;
     coverageRate: number;
   } | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    void api<NonNullable<typeof data>>(`/api/admin/impact?week=${week}`).then(
-      setData,
-    );
+    let live = true;
+    void api<NonNullable<typeof data>>(`/api/admin/impact?week=${week}`)
+      .then((next) => {
+        if (live) setData(next);
+      })
+      .catch(() => {
+        if (live) setFailed(true);
+      });
+    return () => {
+      live = false;
+    };
   }, [week]);
+  if (failed)
+    return (
+      <p className="notice error" role="alert">
+        {t("networkError")}
+      </p>
+    );
   if (!data) return <p>{t("loadingData")}</p>;
   return (
     <section className="stack">

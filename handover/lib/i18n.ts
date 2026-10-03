@@ -31,7 +31,7 @@ const en = {
   demoAdmin: "School admin",
   welcome: "Welcome back",
   loginHint: "Your lessons, handovers, and next steps, together.",
-  authPromise: "A clear handover. A prepared classroom.",
+  authPromise: "Change the timetable. Keep the lesson ready.",
   authDescription:
     "Coordinate timetable changes and give the next teacher everything they need.",
   continue: "Continue",
@@ -194,11 +194,12 @@ const en = {
   resetHint:
     "This resets only sample accounts, lessons, and handovers. Registered accounts are preserved. Type RESET DEMO to continue.",
   resetConfirm: "Reset demo",
-  protected: "Learning minutes protected",
+  protected: "Arranged lesson minutes",
   coverage: "Confirmed coverage",
   byClass: "Handovers by class",
   bySubject: "Handovers by subject",
-  impactHint: "See the learning time your school is protecting.",
+  impactHint:
+    "These are counts of timetable changes this week. They do not measure learning gains.",
   networkError: "We couldn’t reach the server. Please try again.",
   requiredError: "Please complete the required fields.",
   invalidCredentials: "Email or password is incorrect.",
@@ -296,7 +297,7 @@ const zh: Record<keyof typeof en, string> = {
   demoAdmin: "學校管理員",
   welcome: "歡迎回來",
   loginHint: "課表、交接與下一步，都在這裡。",
-  authPromise: "交接清楚，教室準備就緒。",
+  authPromise: "換課之前，把下一堂說清楚。",
   authDescription: "協調課表異動，讓接課教師掌握所需的每一項資訊。",
   continue: "繼續",
   backLogin: "返回登入",
@@ -458,11 +459,11 @@ const zh: Record<keyof typeof en, string> = {
   resetHint:
     "僅重設示範帳號、課表與交接，保留真實註冊帳號。請輸入 RESET DEMO 繼續。",
   resetConfirm: "重設示範",
-  protected: "保障的學習分鐘",
+  protected: "已安排的課堂分鐘",
   coverage: "已確認接課比例",
   byClass: "各班交接數",
   bySubject: "各科交接數",
-  impactHint: "了解學校保障的教學時間。",
+  impactHint: "這是本週調課件數，不是學習成效。",
   networkError: "無法連線到伺服器，請重試。",
   requiredError: "請完成必填欄位。",
   invalidCredentials: "電子郵件或密碼不正確。",
@@ -535,6 +536,13 @@ const extraEn = {
   conflictClass: "The class already has a lesson then.",
   conflictTeacher: "That teacher is already teaching then.",
   demoReset: "Demo workspace",
+  awaitingMe: "Awaiting my confirmation",
+  unavailableHandover:
+    "This handover cannot be opened. It may be cancelled or still an unpublished draft.",
+  calendarFailed: "The calendar download failed. Try again.",
+  checkingSchedule: "Checking the timetable…",
+  sendBlocked: "Complete the handover and clear any clash before sending.",
+  createFromLesson: "Create a handover for this lesson",
 } as const;
 const extraZh: Record<keyof typeof extraEn, string> = {
   medical: "就醫",
@@ -544,6 +552,13 @@ const extraZh: Record<keyof typeof extraEn, string> = {
   conflictClass: "該班這個時段已有課。",
   conflictTeacher: "這位教師這個時段已有課。",
   demoReset: "示範工作台",
+  awaitingMe: "等待我確認",
+  unavailableHandover:
+    "這筆交接目前無法開啟。它可能已取消，或仍是未發布的草稿。",
+  calendarFailed: "行事曆下載失敗，請再試一次。",
+  checkingSchedule: "正在檢查衝堂…",
+  sendBlocked: "請先補齊交接內容，並確認沒有衝堂。",
+  createFromLesson: "為這堂課建立交接",
 };
 export type ExtraKey = keyof typeof extraEn;
 export function translate(language: Language, key: TextKey | ExtraKey): string {

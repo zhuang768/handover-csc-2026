@@ -27,7 +27,7 @@ export function testDatabase(): D1Database {
       const row = sqlite.prepare(this.sql).get(...this.values);
       return row ? (column ? row[column] : row) : null;
     }
-    async all() {
+    execute() {
       const stmt = sqlite.prepare(this.sql);
       const before = sqlite.prepare("SELECT total_changes() AS n").get()
         ?.n as number;
@@ -46,8 +46,11 @@ export function testDatabase(): D1Database {
         },
       };
     }
+    async all() {
+      return this.execute();
+    }
     async run() {
-      return this.all();
+      return this.execute();
     }
     async raw() {
       return (await this.all()).results.map((row) => Object.values(row));
@@ -56,10 +59,11 @@ export function testDatabase(): D1Database {
   return {
     prepare: (sql: string) => new Statement(sql),
     async batch(statements: Statement[]) {
+      // D1 runs a batch as one transaction. Awaiting each statement lets another
+      // batch begin in between; keep this path synchronous like production D1.
       sqlite.exec("BEGIN");
       try {
-        const results = [];
-        for (const statement of statements) results.push(await statement.all());
+        const results = statements.map((statement) => statement.execute());
         sqlite.exec("COMMIT");
         return results;
       } catch (error) {
