@@ -1,6 +1,6 @@
 # Handover — Submission checklist
 
-官方資料核對日：2026-10-03（Asia/Taipei）。這是提交準備文件；未勾選項目代表尚待完成或本人確認，不能視為已提交、已部署或已通過驗收。
+官方資料核對日：2026-10-03（Asia/Taipei）；交付證據更新日：2026-10-04。這是提交準備文件；交付驗證與 Devpost 表單提交分開記錄，未勾選項目代表尚待完成或本人確認。
 
 ## 截止時間與倒數
 
@@ -31,9 +31,11 @@ console.log(Math.max(0, (deadline.getTime() - Date.now()) / 3_600_000).toFixed(1
 - [ ] 所有展示資料為合成資料；若使用真實資料，已取得必要許可。
 - [ ] 作品及文案未把作弊、傷害或騷擾當成用途。
 
-資格、期間及資料要求依[正式規則](https://csc-back-to-school.devpost.com/rules)；帳號与未成年同意依[Devpost 使用條款](https://info.devpost.com/legal/terms-of-service)。是否符合資格必須由本人確認。
+資格、期間及資料要求依[正式規則](https://csc-back-to-school.devpost.com/rules)；帳號與未成年同意依[Devpost 使用條款](https://info.devpost.com/legal/terms-of-service)。是否符合資格必須由本人確認。
 
 ## 必交內容
+
+下列勾選表示已填入並確認 Devpost 表單；網站與 repo 已備妥，不代表表單已送出。
 
 - [ ] **名稱：** Handover。
 - [ ] **問題與對象：**調課資訊分散；原授課老師、接課老師、學生及教務處需要同一份交接紀錄。
@@ -43,7 +45,7 @@ console.log(Math.max(0, (deadline.getTime() - Date.now()) / 3_600_000).toFixed(1
 - [ ] **AI 揭露：**填入 [AI disclosure](docs/AI_DISCLOSURE.md)，能說明 AI 做了哪些工作。
 - [ ] **隊員資訊：**本人姓名／Devpost profile 與所有隊員加入提交。
 - [ ] **原始碼／建置／設計檔：**本案有原始碼，應附評審可存取的 repo 連結及重建方式。
-- [ ] 用無痕視窗逐一開啟所有連結，確認評審无需私人帳號或授權。
+- [ ] 用無痕視窗逐一開啟所有提交連結，確認評審無需私人帳號或授權。
 
 依[主辦提交清單](https://csc-back-to-school.devpost.com/updates/46587-one-week-left-submission-checklist)。平台實際提交表單若另有必填欄位，仍需依表單完成。
 
@@ -66,34 +68,45 @@ console.log(Math.max(0, (deadline.getTime() - Date.now()) / 3_600_000).toFixed(1
 
 ## 評分與應提供的證據
 
-官網列出 **Learning、Design、Creativity、Functionality、Impact** 五項，未公布百分比權重；不要把附件中的三項簡稱当作完整評分表。[評分標準](https://csc-back-to-school.devpost.com/#judging-criteria)
+官網列出 **Learning、Design、Creativity、Functionality、Impact** 五項，未公布百分比權重；不要把附件中的三項簡稱當作完整評分表。[評分標準](https://csc-back-to-school.devpost.com/#judging-criteria)
 
 | 標準 | Handover 的展示策略 |
 | --- | --- |
-| Learning | 本人解釋必填交接、權限、衝堂檢查與状态機的實作取捨，說明 AI 貢獻。 |
+| Learning | 本人解釋必填交接、權限、衝堂檢查與狀態機的實作取捨，說明 AI 貢獻。 |
 | Design | 讓不同角色的下一步清楚可見，展示手機版與缺欄位提示。 |
 | Creativity | 展示「交接完整才能送出」的強制流程，直接回應調課資訊斷裂。 |
 | Functionality | 畫面連續走完老師送出、接課確認、學生準備與教務總覽。 |
 | Impact | 明確指出受益對象；沒有試辦數據前，不寫節省時間或改善成績的百分比。 |
 
-评審名單會變動，提交前可在[官網 Judges 區](https://csc-back-to-school.devpost.com/#judges)再次檢視。2026-10-03 顯示 CSC 校內評審及外部技術／產品評審；不需要依個別評審設計特殊登入條件。
+評審名單會變動，提交前可在[官網 Judges 區](https://csc-back-to-school.devpost.com/#judges)再次檢視。2026-10-03 顯示 CSC 校內評審及外部技術／產品評審；不需要依個別評審設計特殊登入條件。
+
+## 已完成的交付證據
+
+- [x] 正式 HTTPS 網站已發布並開放公開存取：[Handover](https://handover-campus-2026.ziz81503.chatgpt.site)。
+- [x] 原始碼已依既有授權公開：[zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026)。
+- [x] 先前版本 GitHub CI 成功：[實際 run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969)；最新修補與文件的 CI 須依[實際 workflow](https://github.com/zhuang768/handover-csc-2026/actions)結果確認。
+- [x] Round 5 本機 33 個產品測試、85 個獨立 reviewer 測試、9 個 dev E2E、6 個 built E2E，以及固定版本的 3 個真實 R02 歷史升級 probe 通過；Round 6 離線頁修補另通過 34 個產品測試及全部 6 個 built E2E，範圍見 [TEST_REPORT.md](TEST_REPORT.md)。
+- [x] 正式 HTTPS 的四個 demo session 走完衝堂 409、Draft → Pending → Declined → 修改重送 → Confirmed → Cancelled、學生隱私／待辦保存、課表恢復及登出撤銷；Secure／HttpOnly cookie 與私人回應 `no-store` 已檢查。此流程在網站開放公開存取前執行，未在正式庫測一般註冊或 demo 重置。
+- [x] 開放公開存取後，匿名根頁 200、匿名 API 401／`no-store`、manifest、四張 PNG icon 與 SW MIME 已檢查。
+- [x] 正式 v3 canonical `/offline.htm` 嚴格 HTTP 檢查通過：200、無轉址、`text/html`、設計頁內容；同一個 authored 離線測試在真 HTTPS 通過 1/1，確認真 controller／公共 cache、雙語斷網 reload，以及離線儲存失敗不假報成功、不於重連後保存。未 reset 或成功寫入 profile。
+- [x] 原生瀏覽器完成真實 v1 → v3 waiting-worker 更新：未存的 Mina 7A 修改只顯示警告；還原原值後可更新，真 reload 保留學生 session／繁中且更新提示消失。
+- [ ] 實體 iPhone／Android 加入主畫面及 standalone 啟動；桌面手機 viewport 不算真機安裝證據。
 
 ## 品質與交付驗證
 
-- [ ] [TEST_REPORT.md](TEST_REPORT.md) 的端到端、退回重送、衝堂、API 越權、不同裝置及 demo 重置項目均有實際結果。
-- [ ] 格式、lint、型別、單元／整合測試、build 與 CI 結果如實記錄。
-- [ ] 公開部署環境也走完主流程，不能只用本機測試取代。
-- [ ] 所有介面按鈕有真實功能；影片不展示未通過的 P1／P2。
-- [ ] README 包含網址、demo 登入、安裝、環境變數、seed、授權與 Known Limitations。
-- [ ] 密碼重設清楚標示使用恢復碼，未宣稱已實作 Email 寄信。
-- [ ] [截圖計畫](docs/SCREENSHOT_PLAN.md) 至少 5 張實際截圖；沒有學生真實姓名、敏感資訊或金鑰。
+- [x] [TEST_REPORT.md](TEST_REPORT.md) 記錄端到端、退回重送、衝堂、API 越權、桌面多尺寸及本機 demo 重置結果，並區分正式環境與真機未驗範圍。
+- [x] 格式、lint、型別、單元／整合測試、build 與 CI 結果如實記錄。
+- [x] 已在正式 HTTPS 走完主流程，不能只用本機測試取代；公開匿名與離線檢查範圍另列於上方。
+- [ ] 本人影片只展示已驗證功能，並逐一核對畫面操作與結果。
+- [x] README 包含網址、demo 登入、安裝、環境變數、seed、授權與 Known Limitations。
+- [x] 密碼重設清楚標示使用恢復碼，未宣稱已實作 Email 寄信。
+- [x] [實際截圖清單](docs/screenshots/README.md) 有 8 張合成資料截圖；沒有學生真實姓名、敏感資訊或金鑰。
 - [ ] 影片操作與文案對得上部署版本，並附短 AI 使用說明。
 
 ## 只有本人能完成的最後步驟
 
 - [ ] 確認資格、隊員、Devpost 條款、監護人同意及獎項宣傳選項。
 - [ ] 錄製／上傳影片，確認對外分享可開啟。
-- [ ] 授權並完成 repo 公開與網站發布（若尚未完成）。
 - [ ] 在 Devpost 填入檔案內文、網址與隊員，選擇獎項，按正式提交／發布。
 - [ ] 於 **10/5 12:00** 目標時間前確認成功狀態，保存提交頁與成功畫面；最晚不得超過 **10/5 15:00**。
 

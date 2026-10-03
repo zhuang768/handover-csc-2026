@@ -1,3 +1,9 @@
+# 最新狀態：R06 產品驗收與公開交付通過
+
+正式網址 https://handover-campus-2026.ziz81503.chatgpt.site，GitHub https://github.com/zhuang768/handover-csc-2026，已附加 PR1。接受的 app tree aabf347075416d971287e0733d3f8c0f81418c81 對應產品／文件 commit87bfc8a；push 與 PR CI37146871784／37146879530 均成功。相同 app tree 的 Sites source a465f8044ed696427d06a9db7b23aa6782a9182d 已發布版本4並 succeeded，封裝8資源與5migration逐byte相符。最後 reviewer 紀錄不改產品或 app tree；PR與main的最新CI狀態以GitHub為準。
+
+正式 HTTPS 四角色流程與公開學生登入通過。離線資源先遇到 .html 轉址，再遇到平台忽略 _headers，兩次失敗保留於 R06_RELEASE_RESULTS.md。最終 /offline.htm 本機34單元／6built／28SW安全、正式HTTPS真斷網1/1及真v1→v3更新草稿保護／登入保留均通過；版本4只同步文件，SW及公開資源逐byte保留，實際HTTP再次通過。沒有目前已知未修復的產品缺陷；不保證所有可能bug皆不存在。實體手機安裝與Devpost資格／影片／條款／正式提交仍待本人處理。Codex已完成本輪，勿因Cursor額度用尽重送訊息或修改其模型。
+
 # 目前狀態：R05 本機驗收通過，外部交付進行中
 
 2026-10-04 Asia/Taipei。產品固定 commit `9538135128b95cf2d14db9f154d7aac53ba86e46`，app tree `f611d50eaaa655e955d8ac113f7b55bd41cae6f3`。Codex 接手後完成33產品、85獨立、9 dev、6 built、3真歷史升級測試，格式／lint／型別／build均通過。真正4session流程也通過。詳見R05_INTEGRATION_RESULTS.md。

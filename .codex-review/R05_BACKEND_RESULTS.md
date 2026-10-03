@@ -67,3 +67,21 @@ REVIEW_APP_TREE=<固定HEAD:handover> node --experimental-strip-types --test .co
 ```
 
 本 report 不將它們未跑的新 source 結果宣稱通過。原 R04 stdin 的三個真歷史結果仍在 [R04_HISTORICAL_PROBE_OUTPUT.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/R04_HISTORICAL_PROBE_OUTPUT.md)（1 pass／2 fail），不能改成新 pass。
+
+### 後存 wrapper baseline guard 誤報稽核
+
+固定 R05 候選為 `9538135128b95cf2d14db9f154d7aac53ba86e46`、app tree `f611d50eaaa655e955d8ac113f7b55bd41cae6f3`。根代理首跑保存版三 probe，都停在 raw 0000 string equality guard，**尚未進入升級後的三個業務驗收**；不能把這三個 wrapper failures 當作已重現本輪產品缺陷。
+
+歷史 R02 `0000_init.sql` 有空白分隔行，R03／R05 只將其中 **13** 行換成 Drizzle 的 `--> statement-breakpoint` parser comments；真正 table、column、index、constraint DDL 都未變。根代理只將兩方 `sql.replace(/^--> statement-breakpoint$/gm, '')` 後作 strict equality；保留原 newline，沒有 normalize 空白、大小寫、SQL 語句或其他註解，也沒有改三個原業務 assertions。
+
+本代理於 **2026-10-03 18:41:23 UTC** 唯讀核對固定 HEAD／tree／產品 CI clean，git diff 確認只上述 marker 行。本代理的獨立 stdin 字串 probe **exit 0**，結果：
+
+```json
+{"rawEqual":false,"normalizedEqual":true,"legacyMarkerCount":0,"candidateMarkerCount":13,"normalizedBytes":3849,"normalizedSha256":"d354f114786516e6b7e1d7859dcef5a556d1d6d01b5f6528e9eb8b76e2515c08","realDDLChangeRejected":true}
+```
+
+最後一項 negative control 只在記憶體字串將 teacher unique index 的 period 欄移除，修正後 equality 仍確實拒絕該真 DDL 差異。因此這是移除已證實無 schema 意義的唯一 parser marker，**不是弱化業務驗收／允許 DDL rewrite**。本代理沒有改保存 probe、產品或測試。
+
+本代理首次核對誤把 marker 的 newline 一起刪除，留下與 R02 的空白分隔行差異而 exit 1；改用根代理保存版的精確 regex（只去 marker 文字、保留 newline）即上述 exit 0。這個 reviewer string-normalization 錯誤不列為產品缺陷。
+
+截至本段紀錄，本代理只核對 wrapper guard；修正 guard 後的真正三 probe 由根代理重跑，實際 pass／fail 以該次完整業務輸出為準，不從 normalization pass 推定 API pass。
