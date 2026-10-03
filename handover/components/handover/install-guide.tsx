@@ -39,10 +39,12 @@ export function InstallGuide({
     }, 0);
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
-    if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(
+    if ("serviceWorker" in navigator && !import.meta.env.DEV) {
+      void navigator.serviceWorker.getRegistration().then(
         (registration) => {
-          if (registration.waiting) setUpdateReady(true);
+          if (!registration) return;
+          if (registration.waiting && navigator.serviceWorker.controller)
+            setUpdateReady(true);
           registration.addEventListener("updatefound", () => {
             const worker = registration.installing;
             worker?.addEventListener("statechange", () => {
@@ -86,13 +88,16 @@ export function InstallGuide({
               className="btn"
               type="button"
               onClick={() => {
-                const worker = navigator.serviceWorker?.controller;
-                navigator.serviceWorker
+                const reload = () => window.location.reload();
+                navigator.serviceWorker?.addEventListener(
+                  "controllerchange",
+                  reload,
+                  { once: true },
+                );
+                void navigator.serviceWorker
                   ?.getRegistration()
                   .then((registration) => {
                     registration?.waiting?.postMessage("skip-waiting");
-                    worker?.postMessage("skip-waiting");
-                    window.location.reload();
                   });
               }}
             >
@@ -101,27 +106,29 @@ export function InstallGuide({
           )}
         </p>
       ) : null}
-      <details className="card">
-        <summary>{t("installTitle")}</summary>
-        <div className="stack">
-          {standalone ? <p>{t("installStandalone")}</p> : null}
-          <p>{t("installIntro")}</p>
-          <p>{t("installIos")}</p>
-          <p>{t("installAndroid")}</p>
-          {prompt ? (
-            <button
-              className="btn"
-              type="button"
-              onClick={() => {
-                void prompt.prompt();
-                setPrompt(null);
-              }}
-            >
-              {t("installButton")}
-            </button>
-          ) : null}
-        </div>
-      </details>
+      {standalone ? <p className="card">{t("installStandalone")}</p> : null}
+      {standalone ? null : (
+        <details className="card">
+          <summary>{t("installTitle")}</summary>
+          <div className="stack">
+            <p>{t("installIntro")}</p>
+            <p>{t("installIos")}</p>
+            <p>{t("installAndroid")}</p>
+            {prompt ? (
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  void prompt.prompt();
+                  setPrompt(null);
+                }}
+              >
+                {t("installButton")}
+              </button>
+            ) : null}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

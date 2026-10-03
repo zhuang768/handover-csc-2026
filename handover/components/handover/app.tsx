@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ArrowRightLeft,
   Ban,
@@ -49,15 +55,34 @@ function localWhen(value: string, language: Language) {
   }).format(date);
 }
 
+function isUnauthorized(caught: unknown) {
+  return caught instanceof ApiError && caught.status === 401;
+}
+
+function auditDetail(detail: string, t: (key: TextKey | ExtraKey) => string) {
+  if (detail === "Demo data rebuilt") return t("detailDemoReset");
+  if (detail === "supplement") return t("actionSupplement");
+  if (detail === "password rotated") return t("detailPassword");
+  if (detail === "student" || detail === "teacher" || detail === "admin")
+    return t(detail as TextKey);
+  return detail;
+}
+
 function actionLabel(action: string, t: (key: TextKey | ExtraKey) => string) {
   const bare = action.replace(/^request\./, "");
   const map: Record<string, ExtraKey> = {
     created: "actionCreated",
+    updated: "actionUpdated",
     submitted: "actionSubmitted",
     confirmed: "actionConfirmed",
     declined: "actionDeclined",
     completed: "actionCompleted",
     cancelled: "actionCancelled",
+    supplement: "actionSupplement",
+    "demo.reset": "actionReset",
+    "user.updated": "actionUserUpdated",
+    "account.registered": "actionRegistered",
+    "account.reset": "actionPasswordReset",
   };
   const key = map[bare];
   return key ? t(key) : action;
@@ -182,9 +207,23 @@ export default function HandoverApp() {
   const [focus, setFocus] = useState<ChangeRequest | null>(null);
   const [seedLesson, setSeedLesson] = useState("");
   const [editing, setEditing] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [sessionProblem, setSessionProblem] = useState("");
+  const [sessionAttempt, setSessionAttempt] = useState(0);
 
-  async function openRequest(id: string) {
-    setError("");
+  const signOut = useCallback(() => {
+    setUser(null);
+    setWorkspace(null);
+    setEditing(false);
+    setDrafting(false);
+    setMoreOpen(false);
+    setSelected(null);
+    setFocus(null);
+  }, []);
+
+  async function openRequest(id: string, keepError = false) {
+    if (!keepError) setError("");
     try {
       const data = await api<{ request: ChangeRequest }>(
         `/api/requests/${id}`,
@@ -204,10 +243,7 @@ export default function HandoverApp() {
       setFocus(null);
       setSelected(null);
       setView("requests");
-      if (caught instanceof ApiError && caught.status === 401) {
-        setUser(null);
-        setWorkspace(null);
-      }
+      if (isUnauthorized(caught)) signOut();
       setError(
         caught instanceof ApiError
           ? caught.status === 404
@@ -254,15 +290,33 @@ export default function HandoverApp() {
   }
 
   useEffect(() => {
+    let live = true;
     api<{ user: User }>("/api/auth/me")
       .then((data) => {
+        if (!live) return;
+        setSessionProblem("");
         setUser(data.user);
         return load();
       })
-      .catch(() => setLoading(false));
-    // Initial session check only.
+      .catch((caught: unknown) => {
+        if (!live) return;
+        setLoading(false);
+        if (isUnauthorized(caught)) {
+          setSessionProblem("");
+          return;
+        }
+        setSessionProblem(
+          caught instanceof ApiError
+            ? errorText(prefs.language, caught.code)
+            : translate(prefs.language, "sessionOffline"),
+        );
+      });
+    return () => {
+      live = false;
+    };
+    // Session check runs once and again only from the explicit retry.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sessionAttempt]);
 
   async function refresh() {
     await load();
@@ -281,6 +335,8 @@ export default function HandoverApp() {
         language={prefs.language}
         setLanguage={prefs.setLanguage}
         notice={error}
+        sessionProblem={sessionProblem}
+        onRetrySession={() => setSessionAttempt((value) => value + 1)}
         onUser={(next) => {
           setUser(next);
           setWeek(defaultSchoolMonday());
@@ -326,7 +382,7 @@ export default function HandoverApp() {
       data-theme={prefs.theme}
       data-large={String(prefs.large)}
       data-contrast={String(prefs.contrast)}
-      data-simple={String(prefs.simple)}
+      data-simple={String(user.role === "student" && prefs.simple)}
     >
       <a className="skip-link" href="#main">
         {t("mainNav")}
@@ -335,62 +391,65 @@ export default function HandoverApp() {
         <nav className="sidebar" aria-label={t("mainNav")}>
           <strong>Handover</strong>
           <p>{t("tagline")}</p>
-          {nav.map(([id, key]) => (
+          <div className="desktop-nav">
+            {nav.map(([id, key]) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={view === id ? "page" : undefined}
+                onClick={() => {
+                  setView(id);
+                  setEditing(false);
+                  setMoreOpen(false);
+                }}
+              >
+                {t(key)}
+                {id === "notifications" && unread ? ` (${unread})` : ""}
+              </button>
+            ))}
             <button
-              key={id}
               type="button"
-              aria-current={view === id ? "page" : undefined}
-              onClick={() => {
-                setView(id);
-                setEditing(false);
-              }}
+              onClick={() =>
+                prefs.setLanguage(prefs.language === "en" ? "zh" : "en")
+              }
             >
-              {t(key)}
-              {id === "notifications" && unread ? ` (${unread})` : ""}
+              {prefs.language === "en" ? "繁體中文" : "English"}
             </button>
-          ))}
-          <button
-            type="button"
-            onClick={() =>
-              prefs.setLanguage(prefs.language === "en" ? "zh" : "en")
-            }
-          >
-            {prefs.language === "en" ? "繁體中文" : "English"}
-          </button>
-          <button
-            type="button"
-            disabled={loggingOut}
-            onClick={async () => {
-              setLoggingOut(true);
-              setError("");
-              try {
-                await api("/api/auth/logout", {});
-                setUser(null);
-                setWorkspace(null);
-                setEditing(false);
-                setSelected(null);
-                setFocus(null);
-                setSeedLesson("");
-                setView("overview");
-                setMessage("");
-              } catch (caught) {
-                if (caught instanceof ApiError && caught.status === 401) {
+            <button
+              type="button"
+              disabled={loggingOut}
+              onClick={async () => {
+                setLoggingOut(true);
+                setError("");
+                try {
+                  await api("/api/auth/logout", {});
                   setUser(null);
                   setWorkspace(null);
-                  return;
+                  setEditing(false);
+                  setSelected(null);
+                  setFocus(null);
+                  setSeedLesson("");
+                  setView("overview");
+                  setMessage("");
+                } catch (caught) {
+                  if (caught instanceof ApiError && caught.status === 401) {
+                    setUser(null);
+                    setWorkspace(null);
+                    return;
+                  }
+                  setError(
+                    caught instanceof ApiError
+                      ? errorText(prefs.language, caught.code)
+                      : t("networkError"),
+                  );
+                } finally {
+                  setLoggingOut(false);
                 }
-                setError(
-                  caught instanceof ApiError
-                    ? errorText(prefs.language, caught.code)
-                    : t("networkError"),
-                );
-              } finally {
-                setLoggingOut(false);
-              }
-            }}
-          >
-            {t("logout")}
-          </button>
+              }}
+            >
+              {t("logout")}
+            </button>
+          </div>
         </nav>
         <main id="main" className="main">
           <div className="topbar">
@@ -433,7 +492,7 @@ export default function HandoverApp() {
             </p>
           ) : null}
           {loading ? <p>{t("loadingData")}</p> : null}
-          <InstallGuide t={t} editing={editing} />
+          <InstallGuide t={t} editing={editing || drafting} />
           {view === "overview" ? (
             <Overview
               t={t}
@@ -490,6 +549,8 @@ export default function HandoverApp() {
               }}
               onMessage={setMessage}
               onReload={refresh}
+              onUnauthorized={signOut}
+              onDrafting={setDrafting}
             />
           ) : null}
           {view === "notifications" ? (
@@ -497,14 +558,11 @@ export default function HandoverApp() {
               t={t}
               language={prefs.language}
               workspace={workspace}
-              onOpen={(id) => void openRequest(id)}
+              onOpen={(id, keepError) => void openRequest(id, keepError)}
               onReload={refresh}
               onMessage={setMessage}
               onError={setError}
-              onUnauthorized={() => {
-                setUser(null);
-                setWorkspace(null);
-              }}
+              onUnauthorized={signOut}
             />
           ) : null}
           {view === "profile" ? (
@@ -514,34 +572,126 @@ export default function HandoverApp() {
               classes={workspace.classes}
               prefs={prefs}
               onMessage={setMessage}
+              onUnauthorized={signOut}
+              onDrafting={setDrafting}
               onReload={async () => {
-                const me = await api<{ user: User }>("/api/auth/me");
-                setUser(me.user);
-                await refresh();
+                try {
+                  const me = await api<{ user: User }>("/api/auth/me");
+                  setUser(me.user);
+                  await refresh();
+                } catch (caught) {
+                  if (isUnauthorized(caught)) signOut();
+                  else throw caught;
+                }
               }}
             />
           ) : null}
           {view === "users" && user.role === "admin" ? (
-            <Users t={t} onMessage={setMessage} />
+            <Users
+              t={t}
+              language={prefs.language}
+              onMessage={setMessage}
+              onUnauthorized={signOut}
+            />
           ) : null}
-          {view === "audit" && user.role === "admin" ? <Audit t={t} /> : null}
+          {view === "audit" && user.role === "admin" ? (
+            <Audit t={t} language={prefs.language} onUnauthorized={signOut} />
+          ) : null}
           {view === "impact" && user.role === "admin" ? (
-            <Impact t={t} week={week} />
+            <Impact t={t} week={week} onUnauthorized={signOut} />
           ) : null}
         </main>
       </div>
       <nav className="bottom-nav" aria-label={t("mainNav")}>
-        {nav.slice(0, 4).map(([id, key]) => (
-          <button
-            key={id}
-            type="button"
-            aria-current={view === id ? "page" : undefined}
-            onClick={() => setView(id)}
-          >
-            {t(key)}
-          </button>
-        ))}
+        {nav
+          .filter(([id]) => ["overview", "timetable", "requests"].includes(id))
+          .map(([id, key]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={view === id ? "page" : undefined}
+              onClick={() => {
+                setView(id);
+                setMoreOpen(false);
+              }}
+            >
+              {t(key)}
+            </button>
+          ))}
+        <button
+          type="button"
+          aria-expanded={moreOpen}
+          aria-current={
+            ["notifications", "profile", "users", "audit", "impact"].includes(
+              view,
+            )
+              ? "page"
+              : undefined
+          }
+          onClick={() => setMoreOpen((open) => !open)}
+        >
+          {t("more")}
+          {unread ? ` (${unread})` : ""}
+        </button>
       </nav>
+      {moreOpen ? (
+        <div className="more-sheet" role="dialog" aria-label={t("more")}>
+          {nav
+            .filter(
+              ([id]) => !["overview", "timetable", "requests"].includes(id),
+            )
+            .map(([id, key]) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={view === id ? "page" : undefined}
+                onClick={() => {
+                  setView(id);
+                  setEditing(false);
+                  setMoreOpen(false);
+                }}
+              >
+                {t(key)}
+                {id === "notifications" && unread ? ` (${unread})` : ""}
+              </button>
+            ))}
+          <button
+            type="button"
+            onClick={() =>
+              prefs.setLanguage(prefs.language === "en" ? "zh" : "en")
+            }
+          >
+            {prefs.language === "en" ? "繁體中文" : "English"}
+          </button>
+          <button
+            type="button"
+            disabled={loggingOut}
+            onClick={async () => {
+              setLoggingOut(true);
+              try {
+                await api("/api/auth/logout", {});
+                signOut();
+              } catch (caught) {
+                if (isUnauthorized(caught)) signOut();
+                else
+                  setError(
+                    caught instanceof ApiError
+                      ? errorText(prefs.language, caught.code)
+                      : t("networkError"),
+                  );
+              } finally {
+                setLoggingOut(false);
+                setMoreOpen(false);
+              }
+            }}
+          >
+            {t("logout")}
+          </button>
+          <button type="button" onClick={() => setMoreOpen(false)}>
+            {t("close")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -552,12 +702,16 @@ function AuthScreen({
   setLanguage,
   onUser,
   notice,
+  sessionProblem,
+  onRetrySession,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
   setLanguage: (value: Language) => void;
   onUser: (user: User) => void;
   notice?: string;
+  sessionProblem?: string;
+  onRetrySession?: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -724,6 +878,14 @@ function AuthScreen({
                   : t("resetPassword")}
             </h2>
             <p>{mode === "recover" ? t("recoveryIntro") : t("loginHint")}</p>
+            {sessionProblem ? (
+              <p className="notice error" role="alert">
+                {sessionProblem}{" "}
+                <button className="btn" type="button" onClick={onRetrySession}>
+                  {t("retry")}
+                </button>
+              </p>
+            ) : null}
             {notice ? (
               <p className="notice error" role="alert">
                 {notice}
@@ -1389,6 +1551,8 @@ function Requests({
   onSelect,
   onMessage,
   onReload,
+  onUnauthorized,
+  onDrafting,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
@@ -1402,6 +1566,8 @@ function Requests({
   onSelect: (id: string | null) => void;
   onMessage: (value: string) => void;
   onReload: () => Promise<void>;
+  onUnauthorized: () => void;
+  onDrafting: (value: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -1523,6 +1689,7 @@ function Requests({
           onClose={() => setEditing(false)}
           onMessage={onMessage}
           onReload={onReload}
+          onUnauthorized={onUnauthorized}
         />
       ) : null}
       {!filtered.length && !editing ? (
@@ -1568,6 +1735,8 @@ function Requests({
           onEdit={() => setEditing(true)}
           onMessage={onMessage}
           onReload={onReload}
+          onUnauthorized={onUnauthorized}
+          onDrafting={onDrafting}
         />
       ) : null}
     </section>
@@ -1604,6 +1773,7 @@ function Editor({
   onClose,
   onMessage,
   onReload,
+  onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
@@ -1614,6 +1784,7 @@ function Editor({
   onClose: () => void;
   onMessage: (value: string) => void;
   onReload: () => Promise<void>;
+  onUnauthorized: () => void;
 }) {
   const choices = workspace.lessons.filter(
     (lesson) => lesson.teacherId === user.id || lesson.originalDate,
@@ -1715,8 +1886,8 @@ function Editor({
         .catch((caught: unknown) => {
           if (checkGeneration.current !== generation) return;
           setFailedKey(key);
-          if (caught instanceof ApiError && caught.status === 401) {
-            setError(errorText(language, caught.code));
+          if (isUnauthorized(caught)) {
+            onUnauthorized();
             return;
           }
           if (caught instanceof ApiError && caught.status === 403) {
@@ -1746,6 +1917,7 @@ function Editor({
     user.id,
     language,
     retryCheck,
+    onUnauthorized,
   ]);
   async function save(submit: boolean) {
     setError("");
@@ -1766,10 +1938,11 @@ function Editor({
       onClose();
       await onReload();
     } catch (caught) {
+      if (isUnauthorized(caught)) {
+        onUnauthorized();
+        return;
+      }
       if (caught instanceof ApiError) {
-        if (caught.status === 401) {
-          setError(errorText(language, caught.code));
-        }
         setMissing(caught.fields);
         setError(errorText(language, caught.code));
       } else setError(t("networkError"));
@@ -2101,6 +2274,8 @@ function Detail({
   onEdit,
   onMessage,
   onReload,
+  onUnauthorized,
+  onDrafting,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
@@ -2109,6 +2284,8 @@ function Detail({
   onEdit: () => void;
   onMessage: (value: string) => void;
   onReload: () => Promise<void>;
+  onUnauthorized: () => void;
+  onDrafting: (value: boolean) => void;
 }) {
   const [comment, setComment] = useState("");
   const [supplement, setSupplement] = useState("");
@@ -2121,12 +2298,17 @@ function Detail({
       return;
     void api(`/api/requests/${request.id}/view`, {}).catch(
       (caught: unknown) => {
-        if (caught instanceof ApiError && caught.status === 401) {
+        if (isUnauthorized(caught)) onUnauthorized();
+        else if (caught instanceof ApiError)
           setError(errorText(language, caught.code));
-        }
+        else setError(translate(language, "networkError"));
       },
     );
-  }, [request.id, request.status, user.role, language]);
+  }, [request.id, request.status, user.role, language, onUnauthorized]);
+  useEffect(() => {
+    onDrafting(comment.trim().length > 0 || supplement.trim().length > 0);
+    return () => onDrafting(false);
+  }, [comment, supplement, onDrafting]);
   async function act(path: string, body: unknown, method = "POST") {
     if (busy) return;
     setBusy(true);
@@ -2137,6 +2319,10 @@ function Detail({
       await onReload();
     } catch (caught) {
       onMessage("");
+      if (isUnauthorized(caught)) {
+        onUnauthorized();
+        return;
+      }
       setError(
         caught instanceof ApiError
           ? errorText(language, caught.code)
@@ -2254,7 +2440,7 @@ function Detail({
           <h3>{t("supplements")}</h3>
           {request.supplements.map((item) => (
             <p key={item.id}>
-              {item.authorName} · {item.at}
+              {item.authorName} · {localWhen(item.at, language)}
               <br />
               {item.text}
             </p>
@@ -2400,7 +2586,7 @@ function Notifications({
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
   workspace: Workspace;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, keepError?: boolean) => void;
   onReload: () => Promise<void>;
   onMessage: (value: string) => void;
   onError: (value: string) => void;
@@ -2450,14 +2636,19 @@ function Notifications({
           type="button"
           key={item.id}
           aria-pressed={item.read}
+          disabled={busy}
           onClick={() => {
             if (busy) return;
             setBusy(true);
             void api("/api/notifications/read", { id: item.id })
-              .then(() => onReload())
+              .then(async () => {
+                onError("");
+                await onReload();
+                onOpen(item.requestId);
+              })
               .catch((caught: unknown) => {
                 onMessage("");
-                if (caught instanceof ApiError && caught.status === 401) {
+                if (isUnauthorized(caught)) {
                   onUnauthorized();
                   return;
                 }
@@ -2466,11 +2657,9 @@ function Notifications({
                     ? errorText(language, caught.code)
                     : t("networkError"),
                 );
+                onOpen(item.requestId, true);
               })
-              .finally(() => {
-                setBusy(false);
-                onOpen(item.requestId);
-              });
+              .finally(() => setBusy(false));
           }}
         >
           <strong>
@@ -2482,7 +2671,9 @@ function Notifications({
                   ? t("eventAccepted")
                   : item.event === "class_change"
                     ? t("eventClassChange")
-                    : item.title}
+                    : item.event === "reminder"
+                      ? t("eventReminder")
+                      : item.title}
           </strong>
           <br />
           {localWhen(item.createdAt, language)} ·{" "}
@@ -2500,6 +2691,8 @@ function Profile({
   prefs,
   onMessage,
   onReload,
+  onUnauthorized,
+  onDrafting,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   user: User;
@@ -2507,6 +2700,8 @@ function Profile({
   prefs: ReturnType<typeof usePrefs>;
   onMessage: (value: string) => void;
   onReload: () => Promise<void>;
+  onUnauthorized: () => void;
+  onDrafting: (value: boolean) => void;
 }) {
   const [name, setName] = useState(user.name);
   const [classId, setClassId] = useState(user.classId ?? "");
@@ -2514,6 +2709,14 @@ function Profile({
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    const dirty =
+      name !== user.name ||
+      (user.role === "student" && classId !== (user.classId ?? "")) ||
+      (user.role === "teacher" && subjects !== user.subjects.join(", "));
+    onDrafting(dirty);
+    return () => onDrafting(false);
+  }, [name, classId, subjects, user, onDrafting]);
   return (
     <section className="card stack">
       <h2>{t("account")}</h2>
@@ -2580,9 +2783,13 @@ function Profile({
             await onReload();
           } catch (caught) {
             onMessage("");
+            if (isUnauthorized(caught)) {
+              onUnauthorized();
+              return;
+            }
             setError(
               caught instanceof ApiError
-                ? errorText("en", caught.code)
+                ? errorText(prefs.language, caught.code)
                 : t("networkError"),
             );
           } finally {
@@ -2662,9 +2869,13 @@ function Profile({
                 await onReload();
               } catch (caught) {
                 onMessage("");
+                if (isUnauthorized(caught)) {
+                  onUnauthorized();
+                  return;
+                }
                 setError(
                   caught instanceof ApiError
-                    ? errorText("en", caught.code)
+                    ? errorText(prefs.language, caught.code)
                     : t("networkError"),
                 );
               } finally {
@@ -2682,28 +2893,47 @@ function Profile({
 
 function Users({
   t,
+  language,
   onMessage,
+  onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
+  language: Language;
   onMessage: (value: string) => void;
+  onUnauthorized: () => void;
 }) {
   const [users, setUsers] = useState<User[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [writingId, setWritingId] = useState("");
   useEffect(() => {
     let live = true;
     void api<{ users: User[] }>("/api/admin/users")
       .then((data) => {
-        if (live) setUsers(data.users);
+        if (!live) return;
+        setUsers(data.users);
+        setError("");
+        setLoading(false);
       })
-      .catch(() => {
-        if (live) setError(t("networkError"));
+      .catch((caught: unknown) => {
+        if (!live) return;
+        setLoading(false);
+        if (isUnauthorized(caught)) {
+          onUnauthorized();
+          return;
+        }
+        setError(
+          caught instanceof ApiError
+            ? errorText(language, caught.code)
+            : translate(language, "networkError"),
+        );
       });
     return () => {
       live = false;
     };
-    // `t` is recreated each render; retry is driven by `attempt`.
+    // Retry is driven by `attempt`; language is read when that attempt starts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
   const shown = users
@@ -2724,12 +2954,17 @@ function Users({
             type="button"
             onClick={() => {
               setError("");
+              setLoading(true);
               setAttempt((value) => value + 1);
             }}
           >
             {t("retry")}
           </button>
         </p>
+      ) : null}
+      {loading ? <p>{t("loading")}</p> : null}
+      {!loading && !error && shown.length === 0 ? (
+        <p>{t("noFilteredRequests")}</p>
       ) : null}
       <label>
         {t("search")}
@@ -2762,7 +2997,10 @@ function Users({
                   <button
                     className="btn ghost"
                     type="button"
+                    disabled={writingId !== ""}
                     onClick={async () => {
+                      if (writingId) return;
+                      setWritingId(item.id);
                       setError("");
                       try {
                         await api(
@@ -2770,18 +3008,33 @@ function Users({
                           { active: !item.active },
                           "PATCH",
                         );
-                        onMessage(t("changesSaved"));
-                        const data = await api<{ users: User[] }>(
-                          "/api/admin/users",
-                        );
-                        setUsers(data.users);
+                        try {
+                          const data = await api<{ users: User[] }>(
+                            "/api/admin/users",
+                          );
+                          setUsers(data.users);
+                          onMessage(t("changesSaved"));
+                        } catch (caught) {
+                          onMessage("");
+                          if (isUnauthorized(caught)) {
+                            onUnauthorized();
+                            return;
+                          }
+                          setError(t("listNeedsRefresh"));
+                        }
                       } catch (caught) {
                         onMessage("");
+                        if (isUnauthorized(caught)) {
+                          onUnauthorized();
+                          return;
+                        }
                         setError(
                           caught instanceof ApiError
-                            ? caught.code
+                            ? errorText(language, caught.code)
                             : t("networkError"),
                         );
+                      } finally {
+                        setWritingId("");
                       }
                     }}
                   >
@@ -2797,7 +3050,15 @@ function Users({
   );
 }
 
-function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
+function Audit({
+  t,
+  language,
+  onUnauthorized,
+}: {
+  t: (key: TextKey | ExtraKey) => string;
+  language: Language;
+  onUnauthorized: () => void;
+}) {
   const [events, setEvents] = useState<
     Array<{
       id: string;
@@ -2810,14 +3071,28 @@ function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
   >([]);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let live = true;
     void api<{ events: typeof events }>("/api/admin/audit")
       .then((data) => {
-        if (live) setEvents(data.events);
+        if (!live) return;
+        setEvents(data.events);
+        setError("");
+        setLoading(false);
       })
-      .catch(() => {
-        if (live) setError(t("networkError"));
+      .catch((caught: unknown) => {
+        if (!live) return;
+        setLoading(false);
+        if (isUnauthorized(caught)) {
+          onUnauthorized();
+          return;
+        }
+        setError(
+          caught instanceof ApiError
+            ? errorText(language, caught.code)
+            : translate(language, "networkError"),
+        );
       });
     return () => {
       live = false;
@@ -2836,6 +3111,7 @@ function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
             type="button"
             onClick={() => {
               setError("");
+              setLoading(true);
               setAttempt((value) => value + 1);
             }}
           >
@@ -2843,18 +3119,20 @@ function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
           </button>
         </p>
       ) : null}
-      {!error && events.length === 0 ? (
+      {loading ? <p>{t("loading")}</p> : null}
+      {!loading && !error && events.length === 0 ? (
         <p>{t("noActivity")}</p>
-      ) : (
-        events.map((event) => (
-          <p key={event.id}>
-            {localWhen(event.at, "en")} · {event.actorName} ·{" "}
-            {actionLabel(event.action, t)}
-            <br />
-            {event.detail}
-          </p>
-        ))
-      )}
+      ) : null}
+      {!loading && !error
+        ? events.map((event) => (
+            <p key={event.id}>
+              {localWhen(event.at, language)} · {event.actorName} ·{" "}
+              {actionLabel(event.action, t)}
+              <br />
+              {auditDetail(event.detail, t)}
+            </p>
+          ))
+        : null}
     </section>
   );
 }
@@ -2862,9 +3140,11 @@ function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
 function Impact({
   t,
   week,
+  onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   week: string;
+  onUnauthorized: () => void;
 }) {
   const [data, setData] = useState<{
     byClass: { name: string; count: number }[];
@@ -2880,13 +3160,18 @@ function Impact({
       .then((next) => {
         if (live) setData(next);
       })
-      .catch(() => {
-        if (live) setFailed(true);
+      .catch((caught: unknown) => {
+        if (!live) return;
+        if (isUnauthorized(caught)) {
+          onUnauthorized();
+          return;
+        }
+        setFailed(true);
       });
     return () => {
       live = false;
     };
-  }, [week, attempt]);
+  }, [week, attempt, onUnauthorized]);
   if (failed)
     return (
       <p className="notice error" role="alert">

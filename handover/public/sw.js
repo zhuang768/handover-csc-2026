@@ -1,4 +1,5 @@
-const VERSION = "handover-public-r03c-2";
+const VERSION = "handover-public-r04-1";
+const PREFIX = "handover-public-";
 const PRECACHE = [
   "/offline.html",
   "/favicon.svg",
@@ -9,6 +10,53 @@ const PRECACHE = [
   "/manifest.webmanifest",
 ];
 
+function publicRequest(request) {
+  if (request.method !== "GET") return null;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return null;
+  if (url.search) return null;
+  if (request.headers.get("authorization")) return null;
+  if (
+    request.headers.has("rsc") ||
+    request.headers.has("next-router-state-tree")
+  )
+    return null;
+  if (!PRECACHE.includes(url.pathname)) return null;
+  return url;
+}
+
+function embeddedOffline() {
+  const html = `<!doctype html><html lang="en"><body><h1>Handover needs a connection</h1><p>Nothing was submitted.</p><h2>交接需要網路</h2><p>沒有任何內容被送出。</p><button type="button" onclick="location.reload()">Try again · 重試</button></body></html>`;
+  return new Response(html, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+async function cleanPublicResponse(response, path) {
+  if (
+    !response ||
+    !response.ok ||
+    response.redirected ||
+    response.type === "opaqueredirect"
+  )
+    return null;
+  const finalUrl = new URL(response.url || path, self.location.origin);
+  if (finalUrl.origin !== self.location.origin) return null;
+  if (finalUrl.pathname !== path) return null;
+  if (finalUrl.pathname.startsWith("/api/")) return null;
+  const body = await response.arrayBuffer();
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "content-type":
+        response.headers.get("content-type") ||
+        (path.endsWith(".html") ? "text/html; charset=utf-8" : "text/plain"),
+      "cache-control": "no-cache",
+    },
+  });
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -16,8 +64,11 @@ self.addEventListener("install", (event) => {
       await Promise.all(
         PRECACHE.map(async (path) => {
           const response = await fetch(path);
-          if (!response.ok) throw new Error(`Could not cache ${path}`);
-          await cache.put(path, response);
+          const clean = await cleanPublicResponse(response, path);
+          if (clean) await cache.put(path, clean);
+          else if (path === "/offline.html")
+            await cache.put(path, embeddedOffline());
+          else throw new Error(`Could not cache ${path}`);
         }),
       );
     })(),
@@ -26,14 +77,15 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((key) => key !== VERSION).map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith(PREFIX) && key !== VERSION)
+          .map((key) => caches.delete(key)),
+      );
+      await self.clients.claim();
+    })(),
   );
 });
 
@@ -46,20 +98,21 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/_next/") ||
-    url.pathname.startsWith("/@") ||
-    url.pathname.includes("hot-update")
-  ) {
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/_next/"))
     return;
-  }
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(VERSION);
+        const cached = await cache.match("/offline.html");
+        if (!cached) {
+          return new Response("Offline", {
+            status: 503,
+            headers: { "content-type": "text/plain; charset=utf-8" },
+          });
+        }
         return (
-          (await cache.match("/offline.html")) ??
+          (await cleanPublicResponse(cached, "/offline.html")) ??
           new Response("Offline", {
             status: 503,
             headers: { "content-type": "text/plain; charset=utf-8" },
@@ -69,22 +122,33 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-  if (!PRECACHE.includes(url.pathname)) return;
+  const allowed = publicRequest(request);
+  if (!allowed) return;
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          void caches.open(VERSION).then((cache) => cache.put(request, copy));
+    (async () => {
+      try {
+        const response = await fetch(request);
+        const clean = await cleanPublicResponse(
+          response.clone(),
+          allowed.pathname,
+        );
+        if (clean) {
+          const saved = clean.clone();
+          event.waitUntil(
+            caches
+              .open(VERSION)
+              .then((cache) => cache.put(allowed.pathname, saved))
+              .catch(() => undefined),
+          );
         }
         return response;
-      })
-      .catch(async () => {
+      } catch {
         const cache = await caches.open(VERSION);
         return (
-          (await cache.match(url.pathname)) ??
+          (await cache.match(allowed.pathname)) ??
           new Response("Offline", { status: 503 })
         );
-      }),
+      }
+    })(),
   );
 });

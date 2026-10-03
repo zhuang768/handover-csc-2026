@@ -13,8 +13,28 @@ async function save(page: Page, name: string) {
 
 async function demo(page: Page, label: string) {
   await page.goto("/");
-  await page.getByRole("button", { name: label }).click();
-  await expect(page.getByRole("navigation")).toBeVisible();
+  const button = page.getByRole("button", { name: label, exact: true });
+  const signOut = page.getByRole("button", { name: "Sign out" });
+  const more = page.getByRole("button", { name: "More" });
+  await expect(button.or(signOut).or(more)).toBeVisible();
+  if (!(await button.isVisible())) {
+    if (await more.isVisible()) await more.click();
+    await signOut.click();
+    await expect(button).toBeVisible();
+  }
+  await button.click();
+  await expect(page.locator(".handover-root")).toBeVisible();
+}
+
+async function widthReport(page: Page) {
+  return page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: Math.max(
+      document.documentElement.scrollWidth,
+      document.body ? document.body.scrollWidth : 0,
+    ),
+    inner: window.innerWidth,
+  }));
 }
 
 test("login and role shells keep their width in English and Traditional Chinese", async ({
@@ -33,10 +53,9 @@ test("login and role shells keep their width in English and Traditional Chinese"
     const shell = page.locator(".shell, .auth-shell, body").first();
     const box = await shell.boundingBox();
     expect(box?.width ?? 0).toBeGreaterThan(width * 0.9);
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
-    );
-    expect(overflow).toBe(true);
+    const measured = await widthReport(page);
+    expect(measured.inner).toBe(width);
+    expect(measured.scroll).toBeLessThanOrEqual(measured.client);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("button", { name: "繁體中文" }).click();
@@ -51,19 +70,64 @@ test("login and role shells keep their width in English and Traditional Chinese"
   await save(page, "01-login-zh-1440.png");
 });
 
-test("student next lesson does not borrow another handover", async ({
+test("student next lesson matches that lesson id, date, and period", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  const workspaceResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/workspace") && response.status() === 200,
+  );
   await demo(page, "Student");
+  const body = (await (await workspaceResponse).json()) as {
+    lessons: {
+      id: string;
+      date: string;
+      period: number;
+      subject: string;
+      requestId?: string;
+    }[];
+    requests: {
+      id: string;
+      lessonId: string;
+      targetDate: string;
+      status: string;
+    }[];
+  };
+  const nextLesson = [...body.lessons]
+    .filter(
+      (lesson) =>
+        lesson.date >=
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Taipei",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date()),
+    )
+    .sort((a, b) =>
+      a.date === b.date ? a.period - b.period : a.date.localeCompare(b.date),
+    )[0];
+  expect(nextLesson?.id).toBeTruthy();
   const card = page.locator(".next-lesson");
-  await expect(card).toBeVisible();
-  const text = await card.innerText();
-  if (text.includes("→")) {
-    const lessonLine = text
-      .split("\n")
-      .find((line) => /\bP?\d\b|Period/.test(line));
-    expect(lessonLine ?? text).not.toMatch(/Friday/i);
+  await expect(card).toContainText(nextLesson.date);
+  await expect(card).toContainText(String(nextLesson.period));
+  await expect(card).toContainText(nextLesson.subject);
+  const paired = body.requests.find(
+    (item) =>
+      item.lessonId === nextLesson.id &&
+      (item.status === "Confirmed" || item.status === "Completed"),
+  );
+  const other = body.requests.find(
+    (item) => item.status === "Confirmed" && item.lessonId !== nextLesson.id,
+  );
+  if (other && other.targetDate !== nextLesson.date)
+    await expect(card).not.toContainText(other.targetDate);
+  if (paired) {
+    await page.getByRole("button", { name: "Open handover" }).click();
+    await expect(page.locator("#handover-detail")).toContainText(
+      paired.targetDate,
+    );
   }
   await save(page, "02-student-next-lesson.png");
 });
@@ -76,6 +140,7 @@ test("a failed conflict check can be retried without clearing the form", async (
   await page.getByRole("button", { name: "Handovers" }).click();
   await page.getByRole("button", { name: "New handover" }).click();
   await page.getByLabel("Arrange the lesson").selectOption("move");
+  await page.getByRole("button", { name: "Use subject template" }).click();
   await page.route("**/api/conflicts", (route) =>
     route.fulfill({ status: 500, body: '{"error":"INTERNAL"}' }),
   );
@@ -87,7 +152,16 @@ test("a failed conflict check can be retried without clearing the form", async (
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(room).toHaveValue("E2E room");
   await page.unroute("**/api/conflicts");
+  const recovered = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/conflicts") && response.status() === 200,
+  );
   await page.getByRole("button", { name: "Try again" }).click();
+  await recovered;
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Send for confirmation" }),
+  ).toBeEnabled();
   await save(page, "03-teacher-editor.png");
 });
 
@@ -111,71 +185,16 @@ test("manifest, home-screen guide, and a phone-width student home", async ({
   const icon = await page.request.get("/icons/icon-192.png");
   expect(icon.status()).toBe(200);
   expect(icon.headers()["content-type"]).toContain("png");
-  await page.getByRole("button", { name: "Student" }).click();
-  await page.locator("summary", { hasText: "Add to Home Screen" }).click();
-  await expect(page.getByText(/open this page in Safari/)).toBeVisible();
+  await page.getByRole("button", { name: "Student", exact: true }).click();
+  const home = await widthReport(page);
+  expect(home.inner).toBe(390);
+  expect(home.scroll).toBeLessThanOrEqual(home.client);
+  await expect(page.locator(".desktop-nav")).toBeHidden();
+  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
   await save(page, "05-student-390.png");
+  await page.locator("summary", { hasText: "Add to Home Screen" }).click();
+  await expect(page.getByText(/Open as Web App/)).toBeVisible();
   await save(page, "06-install-guide-390.png");
-});
-
-test("offline navigation does not pretend a handover was saved", async ({
-  page,
-}) => {
-  await page.goto("/");
-  expect((await page.request.get("/sw.js")).status()).toBe(200);
-  expect((await page.request.get("/offline.html")).status()).toBe(200);
-  const report = await page.evaluate(async () => {
-    const started = Date.now();
-    let last = "no-service-worker";
-    while (Date.now() - started < 8000) {
-      const registration = await navigator.serviceWorker.getRegistration();
-      const keys = await caches.keys();
-      const urls: string[] = [];
-      let sample = "";
-      for (const key of keys) {
-        const cache = await caches.open(key);
-        for (const request of await cache.keys()) {
-          urls.push(request.url);
-          if (request.url.includes("offline")) {
-            sample = (await (await cache.match(request))?.text()) ?? "";
-          }
-        }
-      }
-      last = JSON.stringify({
-        active: Boolean(registration?.active),
-        keys,
-        urls,
-        sample,
-      });
-      if (
-        sample.includes("needs a connection") &&
-        sample.includes("交接需要網路") &&
-        !urls.some((url) => url.includes("/api/"))
-      )
-        return "ok";
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    return last;
-  });
-  expect(report).toBe("ok");
-  const cachedApi = await page.evaluate(async () => {
-    const keys = await caches.keys();
-    for (const key of keys) {
-      const cache = await caches.open(key);
-      const requests = await cache.keys();
-      if (requests.some((item) => item.url.includes("/api/"))) return true;
-    }
-    return false;
-  });
-  expect(cachedApi).toBe(false);
-  await page.getByRole("button", { name: "Student" }).click();
-  await expect(
-    page.locator("summary", { hasText: "Add to Home Screen" }),
-  ).toBeVisible();
-  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
-  await expect(
-    page.getByText("You are offline. Changes are not saved"),
-  ).toBeVisible();
 });
 
 test("dark primary button text stays light on the green control", async ({
@@ -192,5 +211,113 @@ test("dark primary button text stays light on the green control", async ({
   });
   expect(colors.color).toBe("rgb(255, 255, 255)");
   expect(colors.background).toBe("rgb(36, 107, 86)");
-  await save(page, "04-admin-dark.png");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: "繁體中文" }).click();
+  await page.getByRole("button", { name: "總覽" }).click();
+  const admin = await widthReport(page);
+  expect(admin.scroll).toBeLessThanOrEqual(admin.client);
+  await save(page, "04-admin-zh-1440.png");
+});
+
+test("logged-in roles keep one phone nav and no horizontal overflow", async ({
+  page,
+}) => {
+  for (const role of ["Student", "Original teacher", "School admin"]) {
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await demo(page, role);
+      const measured = await widthReport(page);
+      expect(measured.inner, role).toBe(width);
+      expect(measured.scroll, `${role} ${width}`).toBeLessThanOrEqual(
+        measured.client,
+      );
+      if (width < 768) {
+        await expect(page.locator(".desktop-nav")).toBeHidden();
+        const buttons = page.locator(".bottom-nav button");
+        await expect(buttons).toHaveCount(4);
+        for (const button of await buttons.all()) {
+          const box = await button.boundingBox();
+          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+          expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+            width + 1,
+          );
+        }
+        await page.getByRole("button", { name: "More" }).click();
+        await expect(page.getByRole("dialog", { name: "More" })).toBeVisible();
+        await page.getByRole("button", { name: "Close" }).click();
+      } else {
+        await expect(page.locator(".desktop-nav")).toBeVisible();
+        await expect(page.locator(".bottom-nav")).toBeHidden();
+      }
+      if (width < 768) await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("button", { name: "繁體中文" }).click();
+      const zh = await widthReport(page);
+      expect(zh.scroll).toBeLessThanOrEqual(zh.client);
+      await page.getByRole("button", { name: "English" }).click();
+      if (width < 768)
+        await page.getByRole("button", { name: "Close" }).click();
+    }
+  }
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await demo(page, "Original teacher");
+  await save(page, "07-teacher-768.png");
+});
+
+test("simple view stays on the student and keeps the lesson list", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await demo(page, "Student");
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("button", { name: "Profile" }).click();
+  await page.getByLabel("Simple student view").check();
+  await page.getByRole("button", { name: "Timetable" }).click();
+  await expect(page.locator(".day-list")).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".day-list")).toBeVisible();
+  await expect(page.locator(".week-grid")).toBeHidden();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page
+    .getByRole("button", { name: "Original teacher", exact: true })
+    .click();
+  await expect(page.locator(".handover-root")).toHaveAttribute(
+    "data-simple",
+    "false",
+  );
+  await page.getByRole("button", { name: "Timetable" }).click();
+  await expect(page.locator(".week-grid")).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "School admin", exact: true }).click();
+  await expect(page.getByText("Changes this week").first()).toBeVisible();
+  await page.getByRole("button", { name: "Timetable" }).click();
+  await expect(page.locator(".week-grid")).toBeVisible();
+});
+
+test("detail comments do not leak across handovers and a 401 leaves the shell", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await demo(page, "Original teacher");
+  await page.getByRole("button", { name: "Handovers" }).click();
+  const note = page.getByRole("textbox", { name: "Add a note" });
+  await page
+    .locator("article", { hasText: "Confirmed" })
+    .getByRole("button", { name: "Open handover" })
+    .first()
+    .click();
+  await note.fill("FIRST-NOTE");
+  await page
+    .locator("article", { hasText: "Pending" })
+    .getByRole("button", { name: "Open handover" })
+    .first()
+    .click();
+  await expect(note).toHaveValue("");
+  await save(page, "08-detail-390.png");
+  await page.route("**/api/profile", (route) =>
+    route.fulfill({ status: 401, body: '{"error":"UNAUTHORIZED"}' }),
+  );
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("button", { name: "Profile" }).click();
+  await page.getByRole("button", { name: "Save profile" }).click();
+  await expect(page.getByRole("button", { name: "Student" })).toBeVisible();
 });

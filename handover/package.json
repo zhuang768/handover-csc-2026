@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/api.test.ts tests/pwa.test.ts",
     "test:e2e": "playwright test",
+    "test:e2e:built": "npm run build && playwright test -c playwright.built.config.ts",
     "format": "prettier --write \"server/**/*.ts\" \"shared/**/*.ts\" \"components/handover/**/*.{ts,tsx}\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"server/**/*.ts\" \"shared/**/*.ts\" \"components/handover/**/*.{ts,tsx}\" \"app/**/*.{ts,tsx}\" \"tests/**/*.ts\"",
     "db:generate": "drizzle-kit generate"

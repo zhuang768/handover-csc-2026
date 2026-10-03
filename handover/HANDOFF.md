@@ -1,46 +1,37 @@
 # Handoff
 
-Branch `handover`. Round 3 is ready for Codex review. Round 2 did not pass independent re-review. Do not treat this file as a pass.
+Branch `handover`. Round 4 is ready for Codex review. Round 3 did not pass independent review. Do not treat an older 82-pass run as the current suite.
 
-## What changed
+## What changed this round
 
-- Wrong HTTP methods on action routes return 405 and do not write. Accept, decline, cancel, and complete run as one D1 batch. A lost race does not move the lesson or write a timeline row.
-- Accept rechecks the slot. Cancel restores that request’s `original_*` snapshot only when the slot is free. A unique teacher slot index backs the write.
-- Student JSON omits reason, reason category, teacher notes, supplements, and timeline comments.
-- Draft save and submit cannot leave an incomplete Pending handover.
-- Request-time DDL was removed. Schema is `db/schema.ts` plus `drizzle/0000_init.sql` and `drizzle/meta`.
-- The test `batch` helper no longer awaits between statements.
-- The editor blocks send until the seven fields and a fresh conflict check pass, and it keeps the draft id if submit fails.
-- Opening a handover loads `GET /api/requests/:id`.
-- Visual system: warm paper and green handbook. See `DESIGN_NOTES.md` and `CREDITS.md`.
+- A complete legacy school, recognized by demo classes plus lessons, is marked `seed_complete` and is not inserted again. A partial legacy school fills missing lessons with `INSERT OR IGNORE` on classes and demo accounts. Edited profiles, real accounts, sessions, and established rows stay.
+- Phone width uses one bottom navigation plus More. Simple view applies only while a student is signed in, and that student still has the day list.
+- 401 responses leave the signed-in shell. Session check failures are not shown as a normal sign-out. Audit, reminder, and system action text follow the current language.
+- The service worker only deletes `handover-public-` caches, ignores authorization, query, and RSC requests, and does not store a redirected response. Built assets use `html_handling: none`. On this machine `GET /offline.html` returned 200 with no redirect, and an offline reload showed the public page.
+- `handover/.gitignore` ignores `*.tsbuildinfo`. `npm run db:migrate` is documented as local-only.
 
 ## Skills actually read
 
-- `security-best-practices` and its React frontend spec: no new HTML sinks; cookies stay HttpOnly; origin and method checks stay on mutations.
-- `workers-best-practices`: D1 writes that must succeed together use `db.batch`; schema is a migration, not DDL on the request.
-- `design-system`: primitive, semantic, and component tokens in `handover.css`.
-- `redesign-existing-projects`: restyle the existing workspace. Landing-page patterns, stock photos, and fake stats were not applied.
-- `ui-styling`: button text, focus, and checkbox width.
-- `vercel-react-best-practices`: conflict checks stay debounced; no new client waterfall was added.
-- `ai-debt-detector`: calendar download errors are shown; impact load failure is not an infinite spinner; a failed submit keeps the draft id.
+- `diagnosing-bugs`: the legacy 409 was tied to `seed_complete` versus `meta.seeded`, and the offline reload was tested on the built worker instead of a synthetic event.
+- `workers-best-practices`: cache writes stay inside `waitUntil`; HTML handling is set so `/offline.html` is not canonicalized.
+- `security-best-practices`: the public cache rejects authorization, secrets in the query, RSC requests, and redirected private URLs. The calendar response sends `cache-control: no-store`.
+- Playwright skill: the repair asked for rerunnable test files, so the checks live in `@playwright/test`.
+- `ai-debt-detector`: the update reload listens once for `controllerchange`; a failed offline save is not treated as success.
 
 ## Checks run on this machine
 
 From `handover/`:
 
 - `npm test` — exit 0, 26 passed.
-- `npm run test:e2e` — exit 0, 6 passed. Desktop Chromium only; no physical phone install.
+- `npm run test:e2e` — exit 0, 8 passed.
+- `npm run test:e2e:built` — exit 0, 1 passed. `offline.html` status 200, no `Location`.
 - `npm run lint` — exit 0.
 - `npm run format:check` — exit 0.
-- `npm run typecheck` — exit 0 (`tsc --noEmit` during the same session).
+- `npm run typecheck` — exit 0.
 - `npm run build` — exit 0.
 
 From the repo root:
 
-- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 82 passed, 0 failed.
+- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 85 passed, 0 failed, 0 skipped.
 
-Browser notes are filled in `TEST_REPORT.md` after the local session. Public deploy and GitHub push were not done.
-
-## Still human-only
-
-Eligibility, names, guardian consent, Devpost terms, awards, the demo video, and the final Devpost submit. License for the product itself is not chosen; vendor OFL/ISC/MIT notices are not a product license.
+Not run: a physical phone install, a public deploy, and a two-version service-worker update in the browser.

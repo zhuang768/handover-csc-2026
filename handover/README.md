@@ -34,7 +34,11 @@ npm run build
 npm run test:e2e
 ```
 
-`npm test` runs the API suite against in-memory SQLite using the same SQL as D1. `npm run test:e2e` installs nothing extra; it uses the existing Playwright dev dependency and a separate local D1 under `.wrangler/e2e-state`. Before a production Worker, run `npm run db:migrate` against that environment’s D1. This repository has not been deployed from this round.
+`npm test` runs the API suite against in-memory SQLite using the same SQL as D1. `npm run test:e2e` uses the existing Playwright dev dependency and a separate local D1 under `.wrangler/e2e-state`. Install the browser once with `npx playwright install --with-deps chromium` before that command on a clean machine.
+
+`npm run db:migrate` applies SQL only to a **local** D1. `scripts/migrate-local-d1.mjs` always passes Wrangler `--local` and `wrangler.migrate.json`. It does not touch the Sites production database, and this repository does not contain a remote database id. A published Site applies the SQL and Drizzle metadata that are already inside the portable package, through the existing Site publish flow. Do not point this npm script at production.
+
+This repository has not been deployed from this round. Open the school URL, then add Handover to the phone home screen. Timetable changes need a connection; the offline page does not submit them, and an update reloads only after you confirm and no draft is open.
 
 The product itself is currently unlicensed. Manrope, Noto Sans TC, Lucide, and the Vinext starter keep their own notices in `CREDITS.md`.
 

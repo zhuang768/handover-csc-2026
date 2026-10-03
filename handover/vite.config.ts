@@ -77,6 +77,7 @@ export default defineConfig(async ({ command }) => {
         },
         config: {
           ...localBindingConfig,
+          assets: { html_handling: "none" },
           ...(command === "serve"
             ? {
                 services: [

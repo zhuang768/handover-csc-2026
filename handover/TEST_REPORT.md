@@ -33,6 +33,25 @@ npm run typecheck     # exit 0
 
 `npm run build` completed with exit 0 on 2026-10-03 (`vinext build`, route `/` and `/api/:path*`).
 
+## Round 4, 2026-10-04
+
+Round 3’s independent review did not pass. A fixed export of `f3fa696` was reported as 85 counts, 82 pass / 3 fail, all three on legacy upgrade. This section is the later local run of the latest suite, not that export.
+
+From `handover/`:
+
+- `npm test` — exit 0, 26 passed (24 API + 2 PWA file checks).
+- `npm run lint` — exit 0.
+- `npm run format:check` — exit 0.
+- `npm run typecheck` — exit 0.
+- `npm run build` — exit 0. Built `dist/server/wrangler.json` has `assets.html_handling` `none`.
+- `npm run test:e2e` — exit 0, 8 passed. Logged-in student, original teacher, and admin at 390, 768, and 1440, in English and Traditional Chinese. Document `scrollWidth` was less than or equal to `clientWidth`. PNG files `05-student-390.png` and `06-install-guide-390.png` measured 390 CSS pixels wide, not 392.
+- `npm run test:e2e:built` — exit 0, 1 passed. Built worker `GET /offline.html` with redirects disabled returned 200 and no `Location`. A controlled page reloaded while offline and showed the public bilingual page. Reconnect did not submit the profile edit that failed offline.
+
+From the repo root:
+
+- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 85 passed, 0 failed, 0 skipped. Includes the R04 row-preservation case. The Codex test files were not edited.
+- Service worker behavior probe against `handover/public/sw.js` before commit — 28 passed, 0 failed. The reviewer command that pins a git SHA is run after the product commit.
+
 ## Round 3, 2026-10-04
 
 Round 2’s independent re-review did not pass. This section is only the later local run.
@@ -66,6 +85,6 @@ Not claimed: a full keyboard tour of every field, reduced-motion computed style,
 
 ## Not verified
 
-- Phone 390, tablet 768, and desktop 1440 were not measured as separate viewports. The browser check above was one width only.
-- No public URL was exercised. Local tests are not a deployment test.
-- Playwright end-to-end was not run.
+These three bullets were the Round 1 limit. Round 4 measured 390, 768, and 1440 after login and ran Playwright, including a built-worker offline reload. They are not the current result.
+
+Still not verified: a physical iPhone or Android Add to Home Screen, a public HTTPS deploy, and a browser run that installs two service-worker versions and waits for `controllerchange`. The update button waits for that event in code; that two-version browser run was not executed.

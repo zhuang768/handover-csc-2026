@@ -393,12 +393,38 @@ function collectingDatabase(db: D1Database, bucket: D1PreparedStatement[]) {
   }) as D1Database;
 }
 
+async function markSchoolReady(db: D1Database) {
+  try {
+    await run(
+      db,
+      `INSERT INTO meta (key, value) VALUES ('seed_complete', '1') ON CONFLICT(key) DO UPDATE SET value = '1'`,
+    );
+  } catch (error) {
+    if (await schoolReady(db)) return;
+    throw error;
+  }
+}
+
 async function seedIfEmpty(db: D1Database) {
   if (await schoolReady(db)) return;
+  const lessons = await one<{ n: number }>(
+    db,
+    `SELECT COUNT(*) AS n FROM lessons`,
+  );
+  const classes = await one<{ n: number }>(
+    db,
+    `SELECT COUNT(*) AS n FROM classes WHERE is_demo = 1`,
+  );
+  if ((lessons?.n ?? 0) > 0 && (classes?.n ?? 0) >= 3) {
+    await markSchoolReady(db);
+    return;
+  }
   const bucket: D1PreparedStatement[] = [];
   await seedSchool(collectingDatabase(db, bucket));
   bucket.push(
-    db.prepare(`INSERT INTO meta (key, value) VALUES ('seed_complete', '1')`),
+    db.prepare(
+      `INSERT INTO meta (key, value) VALUES ('seed_complete', '1') ON CONFLICT(key) DO UPDATE SET value = '1'`,
+    ),
   );
   try {
     await db.batch(bucket);
@@ -416,10 +442,11 @@ async function seedSchool(db: D1Database) {
     ["demo-class-8a", "Class 8A"],
   ];
   for (const [classId, name] of classes) {
-    await run(db, `INSERT INTO classes (id, name, is_demo) VALUES (?, ?, 1)`, [
-      classId,
-      name,
-    ]);
+    await run(
+      db,
+      `INSERT OR IGNORE INTO classes (id, name, is_demo) VALUES (?, ?, 1)`,
+      [classId, name],
+    );
   }
   const teachers = [
     ["demo-teacher-0", "maya.chen@demo.handover.school", "Maya Chen", ["Math"]],
@@ -470,13 +497,13 @@ async function seedSchool(db: D1Database) {
   for (const [teacherId, email, name, subjects] of teachers) {
     await run(
       db,
-      `INSERT INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES (?, ?, ?, 'teacher', NULL, ?, ?, NULL, 1, 1, ?)`,
+      `INSERT OR IGNORE INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES (?, ?, ?, 'teacher', NULL, ?, ?, NULL, 1, 1, ?)`,
       [teacherId, email, name, JSON.stringify(subjects), unusable, created],
     );
   }
   await run(
     db,
-    `INSERT INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES ('demo-admin', 'admin@demo.handover.school', 'Avery Lin', 'admin', NULL, '[]', ?, NULL, 1, 1, ?)`,
+    `INSERT OR IGNORE INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES ('demo-admin', 'admin@demo.handover.school', 'Avery Lin', 'admin', NULL, '[]', ?, NULL, 1, 1, ?)`,
     [unusable, created],
   );
   const studentNames = [
@@ -503,7 +530,7 @@ async function seedSchool(db: D1Database) {
           : `student${studentIndex}@demo.handover.school`;
       await run(
         db,
-        `INSERT INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES (?, ?, ?, 'student', ?, '[]', ?, NULL, 1, 1, ?)`,
+        `INSERT OR IGNORE INTO users (id, email, name, role, class_id, subjects, password_hash, recovery_hash, is_demo, active, created_at) VALUES (?, ?, ?, 'student', ?, '[]', ?, NULL, 1, 1, ?)`,
         [
           studentId,
           email,
@@ -1863,8 +1890,7 @@ async function reminders(db: D1Database, user: UserRow) {
       `SELECT id FROM notifications WHERE user_id = ? AND request_id = ? AND event = 'reminder'`,
       [user.id, row.id],
     );
-    if (!existing)
-      await notify(db, user.id, row.id, "reminder", "Class change tomorrow");
+    if (!existing) await notify(db, user.id, row.id, "reminder", "reminder");
   }
 }
 
@@ -2527,6 +2553,7 @@ export async function handleApi(
       return new Response(icsFor(data.lessons), {
         headers: {
           "content-type": "text/calendar; charset=utf-8",
+          "cache-control": "no-store",
           "content-disposition": 'attachment; filename="handover.ics"',
         },
       });

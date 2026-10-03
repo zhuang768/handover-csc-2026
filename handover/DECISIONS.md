@@ -24,7 +24,11 @@ Seeded people, lessons, and requests are marked `is_demo = 1`. Reset deletes onl
 
 ## Installed web app
 
-Handover is used from a URL and can be added to the home screen. `public/sw.js` precaches only the offline page, icons, and manifest. Navigations are network-first. API, auth, and non-GET requests are not cached. An offline submit is not reported as success. A new version reloads only when the user asks and no draft editor is open.
+Handover is used from a URL and can be added to the home screen. `public/sw.js` precaches only the offline page, icons, and manifest. Navigations are network-first. API, auth, and non-GET requests are not cached. The worker asset config sets `html_handling` to `none`, so `/offline.html` is the file itself. A redirected public response is not stored. Activation deletes only older `handover-public-` caches. An offline submit is not reported as success and is not queued. A new version reloads after the user confirms and the new worker takes control, and not while a draft, comment, supplement, or profile edit is open.
+
+`npm run db:migrate` always passes Wrangler `--local`. It does not migrate the Sites database. A published Site applies the SQL already in the portable package.
+
+An existing school that already has demo classes and lessons is marked `seed_complete` without inserting those rows again. A legacy school that stopped before lessons is repaired with `INSERT OR IGNORE` for classes and demo accounts, then the missing lessons and sample handovers. Edited demo profiles, real accounts, and sessions stay.
 
 ## Deferred
 
