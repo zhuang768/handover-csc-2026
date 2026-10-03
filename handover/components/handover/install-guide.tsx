@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ExtraKey, TextKey } from "@/lib/i18n";
+import { getPendingWriteCount } from "@/lib/client-api";
 
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -10,9 +11,11 @@ type InstallPrompt = Event & {
 export function InstallGuide({
   t,
   editing,
+  pending,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   editing: boolean;
+  pending: boolean;
 }) {
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
   const [standalone, setStandalone] = useState(false);
@@ -81,13 +84,14 @@ export function InstallGuide({
       {updateReady ? (
         <p className="notice" role="status">
           {t("updateReady")}{" "}
-          {editing ? (
-            t("updateWhileEditing")
+          {editing || pending ? (
+            t(pending ? "updateWhileBusy" : "updateWhileEditing")
           ) : (
             <button
               className="btn"
               type="button"
               onClick={() => {
+                if (editing || getPendingWriteCount() > 0) return;
                 const reload = () => window.location.reload();
                 navigator.serviceWorker?.addEventListener(
                   "controllerchange",
@@ -97,7 +101,20 @@ export function InstallGuide({
                 void navigator.serviceWorker
                   ?.getRegistration()
                   .then((registration) => {
-                    registration?.waiting?.postMessage("skip-waiting");
+                    if (getPendingWriteCount() > 0 || !registration?.waiting) {
+                      navigator.serviceWorker.removeEventListener(
+                        "controllerchange",
+                        reload,
+                      );
+                      return;
+                    }
+                    registration.waiting.postMessage("skip-waiting");
+                  })
+                  .catch(() => {
+                    navigator.serviceWorker.removeEventListener(
+                      "controllerchange",
+                      reload,
+                    );
                   });
               }}
             >

@@ -576,7 +576,7 @@ const extraEn = {
   installIntro:
     "Use the school web address, then add Handover to your home screen. Timetable changes still need a connection.",
   installIos:
-    "On iPhone or iPad, open this page in Safari. Tap Share, then Add to Home Screen. On newer iOS, open the icon and choose Open as Web App if Safari offers it.",
+    "On iPhone or iPad, open this page in Safari. Tap Share, then Add to Home Screen. If the add screen shows Open as Web App, turn it on before tapping Add. Then open Handover from its home-screen icon.",
   installAndroid:
     "In Chrome, use the browser menu and choose Install app or Add to Home screen.",
   installButton: "Install Handover",
@@ -588,6 +588,8 @@ const extraEn = {
   updateNow: "Reload the new version",
   updateWhileEditing:
     "Close the open draft, comment, supplement, or profile edit before reloading.",
+  updateWhileBusy:
+    "A change is being saved. Wait for it to finish before reloading.",
 } as const;
 const extraZh: Record<keyof typeof extraEn, string> = {
   medical: "就醫",
@@ -636,7 +638,7 @@ const extraZh: Record<keyof typeof extraEn, string> = {
   installIntro:
     "先用學校網址開啟，再把 Handover 加到主畫面。調課和交接仍然需要網路。",
   installIos:
-    "iPhone 或 iPad 請用 Safari 開啟此頁。點分享，再點加入主畫面。較新的 iOS 若出現 Open as Web App，請從圖示選擇以網頁 App 開啟。",
+    "iPhone 或 iPad 請用 Safari 開啟此頁，點分享，再點加入主畫面。如果加入畫面有 Open as Web App（以網頁 App 開啟），請先啟用，再點加入。之後從主畫面圖示開啟 Handover。",
   installAndroid: "在 Chrome 使用瀏覽器選單，選擇安裝應用程式或加到主畫面。",
   installButton: "安裝 Handover",
   installStandalone: "Handover 已從主畫面開啟。",
@@ -646,6 +648,7 @@ const extraZh: Record<keyof typeof extraEn, string> = {
   updateNow: "重新載入新版本",
   updateWhileEditing:
     "請先關閉未完成的草稿、留言、補充或個人資料，再重新載入。",
+  updateWhileBusy: "正在儲存變更，請等待完成後再重新載入。",
 };
 export type ExtraKey = keyof typeof extraEn;
 export function translate(language: Language, key: TextKey | ExtraKey): string {

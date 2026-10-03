@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
+import type { Workspace } from "../../shared/types";
+import { addDays, mondayOnOrBefore } from "../../shared/time";
 
 const shots = new URL("../../docs/screenshots/", import.meta.url);
 
@@ -22,8 +24,24 @@ async function demo(page: Page, label: string) {
     await signOut.click();
     await expect(button).toBeVisible();
   }
+  const loginResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/auth/demo") && response.status() === 200,
+  );
+  const workspaceResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/workspace") && response.status() === 200,
+  );
   await button.click();
-  await expect(page.locator(".handover-root")).toBeVisible();
+  const { user } = (await (await loginResponse).json()) as {
+    user: { name: string };
+  };
+  await workspaceResponse;
+  await expect(page.locator(".shell")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    user.name,
+  );
+  await expect(page.locator(".auth-shell")).toHaveCount(0);
 }
 
 async function widthReport(page: Page) {
@@ -260,6 +278,8 @@ test("logged-in roles keep one phone nav and no horizontal overflow", async ({
   }
   await page.setViewportSize({ width: 768, height: 1024 });
   await demo(page, "Original teacher");
+  await expect(page.locator(".desktop-nav")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Maya");
   await save(page, "07-teacher-768.png");
 });
 
@@ -320,4 +340,77 @@ test("detail comments do not leak across handovers and a 401 leaves the shell", 
   await page.getByRole("button", { name: "Profile" }).click();
   await page.getByRole("button", { name: "Save profile" }).click();
   await expect(page.getByRole("button", { name: "Student" })).toBeVisible();
+});
+
+test("a failed read notification remains visible after opening a different week", async ({
+  page,
+}) => {
+  const initialResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/workspace") && response.status() === 200,
+  );
+  await demo(page, "Student");
+  const initial = (await (await initialResponse).json()) as Workspace;
+  const notification = initial.notifications.find(
+    (item) =>
+      !item.read &&
+      initial.requests.some(
+        (request) =>
+          request.id === item.requestId &&
+          ["Confirmed", "Completed"].includes(request.status),
+      ),
+  );
+  expect(
+    notification,
+    "seed has a real student-visible handover notification",
+  ).toBeTruthy();
+  const request = initial.requests.find(
+    (item) => item.id === notification!.requestId,
+  )!;
+  const previousWeek = addDays(initial.week, -7);
+  expect(mondayOnOrBefore(request.targetDate)).not.toBe(previousWeek);
+  await page.getByRole("button", { name: "Timetable", exact: true }).click();
+  const previousResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes(`/api/workspace?week=${previousWeek}`) &&
+      response.status() === 200,
+  );
+  await page.getByRole("button", { name: "Previous week" }).click();
+  const previous = (await (await previousResponse).json()) as Workspace;
+  const notificationIndex = previous.notifications.findIndex(
+    (item) => item.id === notification!.id,
+  );
+  expect(notificationIndex).toBeGreaterThanOrEqual(0);
+  await page
+    .getByRole("button", { name: /^Notifications(?: \(\d+\))?$/ })
+    .click();
+  await page.route("**/api/notifications/read", (route) =>
+    route.fulfill({ status: 500, json: { error: "INTERNAL" } }),
+  );
+  const detailResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/requests/${request.id}`) &&
+      response.status() === 200,
+  );
+  const targetResponse = page.waitForResponse(
+    (response) =>
+      response
+        .url()
+        .includes(
+          `/api/workspace?week=${mondayOnOrBefore(request.targetDate)}`,
+        ) && response.status() === 200,
+  );
+  await page.locator("section button.lesson").nth(notificationIndex).click();
+  await Promise.all([detailResponse, targetResponse]);
+  await expect(page.locator("#handover-detail")).toContainText(
+    request.targetDate,
+  );
+  await expect(page.getByRole("alert")).toContainText(/reach the server/);
+  const persisted = await page.request.get(
+    `/api/workspace?week=${initial.week}`,
+  );
+  const after = (await persisted.json()) as Workspace;
+  expect(
+    after.notifications.find((item) => item.id === notification!.id)?.read,
+  ).toBe(notification!.read);
 });

@@ -16,7 +16,12 @@ import {
   Pencil,
   RotateCcw,
 } from "lucide-react";
-import { ApiError, api } from "@/lib/client-api";
+import {
+  ApiError,
+  api,
+  getPendingWriteCount,
+  subscribePendingWrites,
+} from "@/lib/client-api";
 import {
   errorText,
   translate,
@@ -191,6 +196,11 @@ function usePrefs() {
 
 export default function HandoverApp() {
   const prefs = usePrefs();
+  const pendingWrites = useSyncExternalStore(
+    subscribePendingWrites,
+    getPendingWriteCount,
+    () => 0,
+  );
   const t = (key: TextKey | ExtraKey) => translate(prefs.language, key);
   const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -237,7 +247,7 @@ export default function HandoverApp() {
       const targetWeek = mondayOnOrBefore(data.request.targetDate);
       if (targetWeek !== week) {
         setWeek(targetWeek);
-        await load(targetWeek);
+        await load(targetWeek, classId, teacherId, keepError);
       }
     } catch (caught) {
       setFocus(null);
@@ -258,11 +268,12 @@ export default function HandoverApp() {
     nextWeek = week,
     nextClass = classId,
     nextTeacher = teacherId,
+    keepError = false,
   ) {
     const generation = loadGeneration.current + 1;
     loadGeneration.current = generation;
     setLoading(true);
-    setError("");
+    if (!keepError) setError("");
     try {
       const params = new URLSearchParams({ week: nextWeek });
       if (nextClass) params.set("classId", nextClass);
@@ -492,7 +503,11 @@ export default function HandoverApp() {
             </p>
           ) : null}
           {loading ? <p>{t("loadingData")}</p> : null}
-          <InstallGuide t={t} editing={editing || drafting} />
+          <InstallGuide
+            t={t}
+            editing={editing || drafting}
+            pending={pendingWrites > 0}
+          />
           {view === "overview" ? (
             <Overview
               t={t}

@@ -2,6 +2,7 @@ import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { handleApi } from "../server/service.ts";
 import { testDatabase } from "./sqlite-d1.ts";
+import { addDays } from "../shared/time.ts";
 import type {
   User,
   Workspace,
@@ -17,6 +18,10 @@ const config = {
 };
 class Client {
   cookie = "";
+  readonly database: D1Database;
+  constructor(database: D1Database = db) {
+    this.database = database;
+  }
   async call(path: string, method = "GET", body?: unknown) {
     const headers = new Headers({ Origin: origin });
     if (body !== undefined) headers.set("Content-Type", "application/json");
@@ -27,7 +32,7 @@ class Client {
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
-      db,
+      this.database,
       config,
     );
     const cookie = response.headers.get("Set-Cookie");
@@ -669,4 +674,539 @@ test("API: concurrent submissions cannot reserve one slot twice", async () => {
   );
   const statuses = results.map((result) => result.response.status).sort();
   assert.deepEqual(statuses, [200, 409]);
+});
+
+test("API: a one-lesson legacy school repairs atomically without replacing accounts or edited rows", async () => {
+  const isolated = testDatabase();
+  const teacher = new Client(isolated),
+    real = new Client(isolated);
+  await teacher.demo("teacher");
+  assert.equal(
+    (await teacher.call("/profile", "PATCH", { name: "Edited legacy teacher" }))
+      .response.status,
+    200,
+  );
+  const registered = await real.call("/auth/register", "POST", {
+    email: `legacy-${crypto.randomUUID()}@example.org`,
+    password: `Legacy-${crypto.randomUUID()}`,
+    name: "Legacy ordinary teacher",
+    role: "teacher",
+    subjects: ["Math"],
+    inviteCode: config.TEACHER_INVITE_CODE,
+  });
+  assert.equal(registered.response.status, 200);
+  const realId = (registered.data.user as User).id;
+  const kept = await isolated
+    .prepare(
+      "SELECT id FROM lessons ORDER BY base_date, class_id, base_period LIMIT 1",
+    )
+    .first<{ id: string }>();
+  assert.ok(kept);
+  await isolated.batch([
+    ...[
+      "slot_locks",
+      "timeline",
+      "notifications",
+      "supplements",
+      "todos",
+      "views",
+      "requests",
+    ].map((table) => isolated.prepare(`DELETE FROM ${table}`)),
+    isolated.prepare("DELETE FROM lessons WHERE id != ?").bind(kept.id),
+    isolated
+      .prepare("UPDATE lessons SET room = 'Edited retained room' WHERE id = ?")
+      .bind(kept.id),
+    isolated.prepare("DELETE FROM meta WHERE key = 'seed_revision'"),
+    isolated.prepare(
+      "INSERT INTO meta (key, value) VALUES ('seeded', '1') ON CONFLICT(key) DO UPDATE SET value = '1'",
+    ),
+  ]);
+  async function fingerprint(table: string) {
+    return JSON.stringify(
+      (await isolated.prepare(`SELECT * FROM ${table} ORDER BY 1`).all())
+        .results,
+    );
+  }
+  const preserved = new Map<string, string>();
+  for (const table of ["users", "sessions", "classes", "lessons"])
+    preserved.set(table, await fingerprint(table));
+  const credentials = JSON.stringify(
+    await isolated
+      .prepare("SELECT * FROM users WHERE id = ?")
+      .bind(realId)
+      .first(),
+  );
+  await isolated.exec(
+    "CREATE TRIGGER product_legacy_seed_fault BEFORE INSERT ON lessons BEGIN SELECT RAISE(ABORT, 'PRODUCT_LEGACY_REPAIR_FAULT'); END",
+  );
+  const failed = await real.call("/auth/me");
+  assert.ok(
+    [409, 500].includes(failed.response.status),
+    "The injected missing-lesson INSERT must fail, not mark the partial school ready.",
+  );
+  for (const [table, before] of preserved)
+    assert.ok(
+      (await fingerprint(table)) === before,
+      `Failed repair must roll back ${table} without disclosing credentials.`,
+    );
+  assert.equal(
+    await isolated
+      .prepare("SELECT value FROM meta WHERE key = 'seed_revision'")
+      .first(),
+    null,
+  );
+  assert.equal(
+    (
+      await isolated
+        .prepare("SELECT COUNT(*) AS n FROM requests")
+        .first<{ n: number }>()
+    )?.n,
+    0,
+  );
+  await isolated.exec("DROP TRIGGER product_legacy_seed_fault");
+  const results = await Promise.all(
+    Array.from({ length: 4 }, () => {
+      const client = new Client(isolated);
+      client.cookie = real.cookie;
+      return client.call("/auth/me");
+    }),
+  );
+  assert.ok(
+    results.every((result) => result.response.status === 200),
+    "Every parallel legacy caller must see the complete repaired school.",
+  );
+  for (const [table, expected] of [
+    ["classes", 3],
+    ["users", 46],
+    ["lessons", 120],
+    ["requests", 7],
+    ["timeline", 14],
+    ["notifications", 14],
+    ["slot_locks", 4],
+  ] as const) {
+    assert.equal(
+      (
+        await isolated
+          .prepare(`SELECT COUNT(*) AS n FROM ${table}`)
+          .first<{ n: number }>()
+      )?.n,
+      expected,
+      `${table} must be complete without duplicate seed effects.`,
+    );
+  }
+  for (const table of ["users", "sessions", "classes"])
+    assert.ok(
+      (await fingerprint(table)) === preserved.get(table),
+      `Successful repair preserves established ${table}.`,
+    );
+  assert.equal(
+    (
+      await isolated
+        .prepare("SELECT room FROM lessons WHERE id = ?")
+        .bind(kept.id)
+        .first<{ room: string }>()
+    )?.room,
+    "Edited retained room",
+  );
+  assert.ok(
+    JSON.stringify(
+      await isolated
+        .prepare("SELECT * FROM users WHERE id = ?")
+        .bind(realId)
+        .first(),
+    ) === credentials,
+  );
+  assert.equal(
+    (
+      await isolated
+        .prepare("SELECT value FROM meta WHERE key = 'seed_complete'")
+        .first<{ value: string }>()
+    )?.value,
+    "1",
+  );
+  const history = await fingerprint("timeline");
+  assert.equal((await real.call("/auth/me")).response.status, 200);
+  assert.equal(
+    await fingerprint("timeline"),
+    history,
+    "Completed repair must be idempotent.",
+  );
+
+  // R02 could fail after Friday Math existed but before sample requests were
+  // inserted. Its users could then establish a legitimate completed move.
+  const partial = testDatabase();
+  const owner = new Client(partial);
+  await owner.demo("teacher");
+  const sample = await partial
+    .prepare(
+      "SELECT lesson_id FROM requests WHERE id = 'demo-request-confirmed'",
+    )
+    .first<{ lesson_id: string }>();
+  assert.ok(sample);
+  await partial.batch([
+    ...[
+      "slot_locks",
+      "timeline",
+      "notifications",
+      "supplements",
+      "todos",
+      "views",
+      "requests",
+    ].map((table) => partial.prepare(`DELETE FROM ${table}`)),
+    partial.prepare(
+      "DELETE FROM lessons WHERE id NOT IN (SELECT id FROM lessons ORDER BY rowid LIMIT 20)",
+    ),
+    partial
+      .prepare(
+        "UPDATE lessons SET teacher_id = base_teacher_id, date = base_date, period = base_period, room = base_room WHERE id = ?",
+      )
+      .bind(sample.lesson_id),
+  ]);
+  assert.equal(
+    (
+      await partial
+        .prepare("SELECT COUNT(*) AS n FROM lessons")
+        .first<{ n: number }>()
+    )?.n,
+    20,
+  );
+  const source = await partial
+    .prepare("SELECT * FROM lessons WHERE id = ?")
+    .bind(sample.lesson_id)
+    .first<{ date: string; teacher_id: string; room: string }>();
+  assert.ok(source);
+  const saved = await owner.call("/requests", "POST", {
+    lessonId: sample.lesson_id,
+    kind: "move",
+    targetDate: addDays(source.date, 7),
+    targetPeriod: 5,
+    targetRoom: "Established Friday room",
+    recipientId: source.teacher_id,
+    reasonCategory: "other",
+    reason: "Established arrangement before the seed upgrade.",
+    handover: fullHandover,
+  });
+  assert.equal(saved.response.status, 200);
+  const establishedId = (saved.data.request as ChangeRequest).id;
+  assert.equal(
+    (await owner.call(`/requests/${establishedId}/submit`, "POST", {})).response
+      .status,
+    200,
+  );
+  assert.equal(
+    (
+      await owner.call(`/requests/${establishedId}/respond`, "POST", {
+        decision: "accept",
+        comment: "Established move.",
+      })
+    ).response.status,
+    200,
+  );
+  assert.equal(
+    (
+      await owner.call(`/requests/${establishedId}/status`, "POST", {
+        status: "Completed",
+      })
+    ).response.status,
+    200,
+  );
+  assert.equal(
+    (
+      await owner.call(`/requests/${establishedId}/supplements`, "POST", {
+        text: "Keep the established teaching note.",
+      })
+    ).response.status,
+    200,
+  );
+  const lessonsBefore = (
+    await partial.prepare("SELECT * FROM lessons ORDER BY id").all()
+  ).results;
+  const establishedBefore = JSON.stringify(
+    await partial
+      .prepare("SELECT * FROM requests WHERE id = ?")
+      .bind(establishedId)
+      .first(),
+  );
+  const relationsBefore = new Map<string, string>();
+  for (const table of ["timeline", "supplements", "notifications"]) {
+    relationsBefore.set(
+      table,
+      JSON.stringify(
+        (
+          await partial
+            .prepare(`SELECT * FROM ${table} WHERE request_id = ? ORDER BY id`)
+            .bind(establishedId)
+            .all()
+        ).results,
+      ),
+    );
+  }
+  const lessonBefore = await partial
+    .prepare("SELECT * FROM lessons WHERE id = ?")
+    .bind(sample.lesson_id)
+    .first();
+  assert.equal(
+    lessonBefore?.period,
+    5,
+    "Negative control must establish a real accepted and completed different arrangement.",
+  );
+  assert.notEqual(
+    lessonBefore?.date,
+    source.date,
+    "The established move must also exercise a changed date.",
+  );
+  await partial.batch([
+    partial.prepare("DELETE FROM meta WHERE key = 'seed_revision'"),
+    partial.prepare(
+      "INSERT INTO meta (key, value) VALUES ('seeded', '1') ON CONFLICT(key) DO UPDATE SET value = '1'",
+    ),
+  ]);
+  assert.equal((await owner.call("/auth/me")).response.status, 200);
+  for (const before of lessonsBefore) {
+    assert.deepEqual(
+      await partial
+        .prepare("SELECT * FROM lessons WHERE id = ?")
+        .bind(String(before.id))
+        .first(),
+      before,
+      "Missing sample repair must preserve each already established lesson row.",
+    );
+  }
+  assert.ok(
+    JSON.stringify(
+      await partial
+        .prepare("SELECT * FROM requests WHERE id = ?")
+        .bind(establishedId)
+        .first(),
+    ) === establishedBefore,
+  );
+  for (const [table, before] of relationsBefore) {
+    assert.equal(
+      JSON.stringify(
+        (
+          await partial
+            .prepare(`SELECT * FROM ${table} WHERE request_id = ? ORDER BY id`)
+            .bind(establishedId)
+            .all()
+        ).results,
+      ),
+      before,
+      `Existing ${table} must survive partial repair.`,
+    );
+  }
+  const repairedSample = await partial
+    .prepare("SELECT * FROM requests WHERE id = 'demo-request-confirmed'")
+    .first();
+  assert.ok(repairedSample);
+  assert.equal(
+    repairedSample.status,
+    "Cancelled",
+    "A stale demonstration must not claim to confirm or replace an established arrangement.",
+  );
+  assert.equal(repairedSample.original_teacher_id, lessonBefore?.teacher_id);
+  assert.equal(repairedSample.original_date, lessonBefore?.date);
+  assert.equal(repairedSample.original_period, lessonBefore?.period);
+  assert.equal(repairedSample.original_room, lessonBefore?.room);
+  assert.equal(repairedSample.target_date, lessonBefore?.date);
+  assert.equal(repairedSample.target_period, lessonBefore?.period);
+  assert.equal(repairedSample.target_room, lessonBefore?.room);
+  assert.equal(
+    (
+      await partial
+        .prepare(
+          "SELECT COUNT(*) AS n FROM slot_locks WHERE request_id = 'demo-request-confirmed'",
+        )
+        .first<{ n: number }>()
+    )?.n,
+    0,
+  );
+  assert.equal(
+    (
+      await partial
+        .prepare(
+          "SELECT COUNT(*) AS n FROM timeline WHERE request_id = 'demo-request-confirmed' AND action IN ('submitted','confirmed','completed')",
+        )
+        .first<{ n: number }>()
+    )?.n,
+    0,
+  );
+  assert.equal(
+    (
+      await partial
+        .prepare("SELECT COUNT(*) AS n FROM lessons")
+        .first<{ n: number }>()
+    )?.n,
+    120,
+  );
+  assert.equal(
+    (
+      await partial
+        .prepare("SELECT COUNT(*) AS n FROM requests")
+        .first<{ n: number }>()
+    )?.n,
+    8,
+  );
+});
+
+test("API: only exact known demo worksheet stubs are repaired, preserving custom URLs and all other handover fields", async () => {
+  const isolated = testDatabase();
+  const real = new Client(isolated);
+  await new Client(isolated).demo("teacher");
+  const registered = await real.call("/auth/register", "POST", {
+    email: `material-${crypto.randomUUID()}@example.org`,
+    password: `Material-${crypto.randomUUID()}`,
+    name: "Ordinary worksheet teacher",
+    role: "teacher",
+    subjects: ["Math"],
+    inviteCode: config.TEACHER_INVITE_CODE,
+  });
+  assert.equal(registered.response.status, 200);
+  const realId = (registered.data.user as User).id;
+  const source = await isolated
+    .prepare("SELECT date FROM lessons ORDER BY date DESC LIMIT 1")
+    .first<{ date: string }>();
+  assert.ok(source);
+  const lessonId = `ordinary-material-${crypto.randomUUID()}`;
+  await isolated
+    .prepare(
+      "INSERT INTO lessons (id,class_id,subject,teacher_id,date,period,room,base_teacher_id,base_date,base_period,base_room,is_demo) VALUES (?, 'demo-class-7a', 'Math', ?, ?, 6, 'Custom', ?, ?, 6, 'Custom', 0)",
+    )
+    .bind(lessonId, realId, source.date, realId, source.date)
+    .run();
+  const draft = await real.call("/requests", "POST", {
+    lessonId,
+    kind: "substitute",
+    targetDate: source.date,
+    targetPeriod: 6,
+    targetRoom: "Custom",
+    recipientId: "demo-teacher-1",
+    reasonCategory: "other",
+    reason: "Ordinary teacher selected this URL.",
+    handover: fullHandover,
+  });
+  assert.equal(draft.response.status, 200);
+  const ordinaryId = (draft.data.request as ChangeRequest).id;
+  const ordinaryBefore = JSON.stringify(
+    await isolated
+      .prepare("SELECT * FROM requests WHERE id = ?")
+      .bind(ordinaryId)
+      .first(),
+  );
+  const realBefore = JSON.stringify(
+    await isolated
+      .prepare("SELECT * FROM users WHERE id = ?")
+      .bind(realId)
+      .first(),
+  );
+  const sessionBefore = JSON.stringify(
+    (
+      await isolated
+        .prepare("SELECT * FROM sessions WHERE user_id = ?")
+        .bind(realId)
+        .all()
+    ).results,
+  );
+  const known = {
+    ...fullHandover,
+    progress: "Edited progress retained",
+    teacherNotes: "Edited private note retained",
+    materials: [
+      { title: "Practice worksheet", url: "https://example.org/worksheet" },
+      {
+        title: "Teacher custom additional sheet",
+        url: "https://example.org/worksheet",
+      },
+    ],
+  };
+  const editedMaterial = {
+    ...fullHandover,
+    materials: [
+      {
+        title: "Teacher renamed worksheet",
+        url: "https://example.org/worksheet",
+      },
+    ],
+  };
+  await isolated.batch([
+    isolated
+      .prepare(
+        "UPDATE requests SET handover_json = ? WHERE id = 'demo-request-confirmed'",
+      )
+      .bind(JSON.stringify(known)),
+    isolated
+      .prepare(
+        "UPDATE requests SET handover_json = ? WHERE id = 'demo-request-pending-maya'",
+      )
+      .bind(JSON.stringify(editedMaterial)),
+    isolated.prepare("DELETE FROM meta WHERE key = 'seed_revision'"),
+  ]);
+  const editedBefore = JSON.stringify(
+    await isolated
+      .prepare("SELECT * FROM requests WHERE id = 'demo-request-pending-maya'")
+      .first(),
+  );
+  assert.equal((await real.call("/auth/me")).response.status, 200);
+  const repaired = await isolated
+    .prepare(
+      "SELECT handover_json FROM requests WHERE id = 'demo-request-confirmed'",
+    )
+    .first<{ handover_json: string }>();
+  assert.ok(repaired);
+  assert.deepEqual(JSON.parse(repaired.handover_json), {
+    ...known,
+    materials: [
+      { title: "Practice worksheet", url: "/worksheets/class-practice.txt" },
+      known.materials[1],
+    ],
+  });
+  assert.ok(
+    JSON.stringify(
+      await isolated
+        .prepare("SELECT * FROM requests WHERE id = ?")
+        .bind(ordinaryId)
+        .first(),
+    ) === ordinaryBefore,
+    "An ordinary teacher's same title and URL are free input and must not be rewritten.",
+  );
+  assert.ok(
+    JSON.stringify(
+      await isolated
+        .prepare(
+          "SELECT * FROM requests WHERE id = 'demo-request-pending-maya'",
+        )
+        .first(),
+    ) === editedBefore,
+    "A renamed material in a known demo request is user input and must remain unchanged.",
+  );
+  assert.ok(
+    JSON.stringify(
+      await isolated
+        .prepare("SELECT * FROM users WHERE id = ?")
+        .bind(realId)
+        .first(),
+    ) === realBefore,
+  );
+  assert.ok(
+    JSON.stringify(
+      (
+        await isolated
+          .prepare("SELECT * FROM sessions WHERE user_id = ?")
+          .bind(realId)
+          .all()
+      ).results,
+    ) === sessionBefore,
+  );
+  const rowsBefore = JSON.stringify(
+    (await isolated.prepare("SELECT * FROM requests ORDER BY id").all())
+      .results,
+  );
+  assert.equal((await real.call("/auth/me")).response.status, 200);
+  assert.equal(
+    JSON.stringify(
+      (await isolated.prepare("SELECT * FROM requests ORDER BY id").all())
+        .results,
+    ),
+    rowsBefore,
+    "Material repair must be idempotent.",
+  );
 });

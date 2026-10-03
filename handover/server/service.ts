@@ -350,15 +350,15 @@ async function readBody(request: Request) {
 }
 
 async function schoolReady(db: D1Database) {
-  const marker = await one<{ value: string }>(
+  const marker = await one<{ n: number }>(
     db,
-    `SELECT value FROM meta WHERE key = 'seed_complete'`,
+    `SELECT COUNT(*) AS n FROM meta WHERE (key = 'seed_complete' AND value = '1') OR (key = 'seed_revision' AND value = '2')`,
   );
   const lessons = await one<{ n: number }>(
     db,
     `SELECT COUNT(*) AS n FROM lessons`,
   );
-  return marker?.value === "1" && (lessons?.n ?? 0) > 0;
+  return marker?.n === 2 && (lessons?.n ?? 0) > 0;
 }
 
 function collectingDatabase(db: D1Database, bucket: D1PreparedStatement[]) {
@@ -393,37 +393,65 @@ function collectingDatabase(db: D1Database, bucket: D1PreparedStatement[]) {
   }) as D1Database;
 }
 
-async function markSchoolReady(db: D1Database) {
-  try {
-    await run(
-      db,
-      `INSERT INTO meta (key, value) VALUES ('seed_complete', '1') ON CONFLICT(key) DO UPDATE SET value = '1'`,
-    );
-  } catch (error) {
-    if (await schoolReady(db)) return;
-    throw error;
-  }
-}
-
 async function seedIfEmpty(db: D1Database) {
   if (await schoolReady(db)) return;
-  const lessons = await one<{ n: number }>(
+  const lessons = await all<{ id: string }>(
     db,
-    `SELECT COUNT(*) AS n FROM lessons`,
+    `SELECT id FROM lessons WHERE is_demo = 1 AND id LIKE 'demo-lesson-demo-class-%' ORDER BY id`,
   );
-  const classes = await one<{ n: number }>(
-    db,
-    `SELECT COUNT(*) AS n FROM classes WHERE is_demo = 1`,
-  );
-  if ((lessons?.n ?? 0) > 0 && (classes?.n ?? 0) >= 3) {
-    await markSchoolReady(db);
-    return;
-  }
+  // Lesson IDs retain the original seed dates even after legitimate moves.
+  // Rebuild the original school weeks rather than adding a new week's copies.
+  const dates = lessons
+    .map((lesson) => /-(\d{4}-\d{2}-\d{2})-\d+$/.exec(lesson.id)?.[1])
+    .filter(
+      (date): date is string => typeof date === "string" && isSchoolDate(date),
+    )
+    .sort();
+  const start = dates[0] ? mondayOnOrBefore(dates[0]) : defaultSchoolMonday();
+  const requests = await all<{
+    id: string;
+    handover_json: string;
+    is_demo: number;
+  }>(db, `SELECT id, handover_json, is_demo FROM requests`);
   const bucket: D1PreparedStatement[] = [];
-  await seedSchool(collectingDatabase(db, bucket));
+  await seedSchool(
+    collectingDatabase(db, bucket),
+    start,
+    new Set(requests.map((row) => row.id)),
+  );
+  for (const row of requests) {
+    if (row.is_demo !== 1 || !demoSampleIds.includes(row.id)) continue;
+    const handover = JSON.parse(row.handover_json) as Handover;
+    let repaired = false;
+    const materials = handover.materials.map((material) => {
+      if (
+        material.title !== "Practice worksheet" ||
+        material.url !== "https://example.org/worksheet" ||
+        Object.keys(material).some((key) => key !== "title" && key !== "url")
+      )
+        return material;
+      repaired = true;
+      return { ...material, url: "/worksheets/class-practice.txt" };
+    });
+    if (repaired)
+      bucket.push(
+        db
+          .prepare(
+            `UPDATE requests SET handover_json = ? WHERE id = ? AND is_demo = 1 AND handover_json = ?`,
+          )
+          .bind(
+            JSON.stringify({ ...handover, materials }),
+            row.id,
+            row.handover_json,
+          ),
+      );
+  }
   bucket.push(
     db.prepare(
       `INSERT INTO meta (key, value) VALUES ('seed_complete', '1') ON CONFLICT(key) DO UPDATE SET value = '1'`,
+    ),
+    db.prepare(
+      `INSERT INTO meta (key, value) VALUES ('seed_revision', '2') ON CONFLICT(key) DO UPDATE SET value = '2'`,
     ),
   );
   try {
@@ -434,7 +462,11 @@ async function seedIfEmpty(db: D1Database) {
   }
 }
 
-async function seedSchool(db: D1Database) {
+async function seedSchool(
+  db: D1Database,
+  start = defaultSchoolMonday(),
+  existingRequests = new Set<string>(),
+) {
   const created = nowIso();
   const classes = [
     ["demo-class-7a", "Class 7A"],
@@ -543,8 +575,8 @@ async function seedSchool(db: D1Database) {
       studentIndex += 1;
     }
   }
-  await insertLessons(db);
-  await insertSampleRequests(db);
+  await insertLessons(db, start);
+  await insertSampleRequests(db, start, existingRequests);
 }
 
 function pattern(): Array<[string, number, number, string, string, string]> {
@@ -612,15 +644,14 @@ function pattern(): Array<[string, number, number, string, string, string]> {
   ];
 }
 
-async function insertLessons(db: D1Database) {
-  const start = defaultSchoolMonday();
+async function insertLessons(db: D1Database, start = defaultSchoolMonday()) {
   for (const week of [0, 1]) {
     for (const [classId, day, period, subject, teacherId, room] of pattern()) {
       const date = addDays(start, week * 7 + day);
       const lessonId = `demo-lesson-${classId}-${date}-${period}`;
       await run(
         db,
-        `INSERT OR IGNORE INTO lessons (id, class_id, subject, teacher_id, date, period, room, base_teacher_id, base_date, base_period, base_room, is_demo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        `INSERT INTO lessons (id, class_id, subject, teacher_id, date, period, room, base_teacher_id, base_date, base_period, base_room, is_demo) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1 WHERE NOT EXISTS (SELECT 1 FROM lessons WHERE id = ?) ON CONFLICT(id) DO NOTHING`,
         [
           lessonId,
           classId,
@@ -633,6 +664,7 @@ async function insertLessons(db: D1Database) {
           date,
           period,
           room,
+          lessonId,
         ],
       );
     }
@@ -652,12 +684,27 @@ const sampleHandover = {
     "PRIVATE_TEACHER_NOTE Offer a quiet corner to anyone who needs extra time.",
 };
 
-function plannedLesson(classId: string, day: number, period: number) {
+const demoSampleIds = [
+  "demo-request-confirmed",
+  "demo-request-pending-maya",
+  "demo-request-pending-jonah",
+  "demo-request-declined",
+  "demo-request-completed",
+  "demo-request-cancelled",
+  "demo-request-draft",
+];
+
+function plannedLesson(
+  classId: string,
+  day: number,
+  period: number,
+  start = defaultSchoolMonday(),
+) {
   const row = pattern().find(
     (item) => item[0] === classId && item[1] === day && item[2] === period,
   );
   if (!row) return null;
-  const date = addDays(defaultSchoolMonday(), day);
+  const date = addDays(start, day);
   return {
     id: `demo-lesson-${classId}-${date}-${period}`,
     class_id: classId,
@@ -670,9 +717,49 @@ function plannedLesson(classId: string, day: number, period: number) {
   };
 }
 
-async function insertSampleRequests(db: D1Database) {
-  const start = defaultSchoolMonday();
+async function seedTimeline(
+  db: D1Database,
+  requestId: string,
+  token: string,
+  actorId: string,
+  action: string,
+  comment: string,
+  stamp: string,
+) {
+  await run(
+    db,
+    `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) SELECT ?, ?, ?, 'Seed', ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
+    [id(), requestId, actorId, action, comment, stamp, requestId, token],
+  );
+}
+
+async function seedNotification(
+  db: D1Database,
+  requestId: string,
+  token: string,
+  userId: string,
+  event: string,
+  title: string,
+) {
+  await run(
+    db,
+    `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read) SELECT ?, ?, ?, ?, ?, ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
+    [id(), userId, requestId, event, title, nowIso(), requestId, token],
+  );
+}
+
+async function insertSampleRequests(
+  db: D1Database,
+  start = defaultSchoolMonday(),
+  existingRequests = new Set<string>(),
+) {
   const stamp = nowIso();
+  const token = id();
+  const existingLessons = new Map(
+    (await all<LessonRow>(db, `SELECT * FROM lessons WHERE is_demo = 1`)).map(
+      (lesson) => [lesson.id, lesson],
+    ),
+  );
   const samples: Array<{
     id: string;
     classId: string;
@@ -738,16 +825,44 @@ async function insertSampleRequests(db: D1Database) {
     },
   ];
   for (const sample of samples) {
-    const date = addDays(start, sample.day);
-    const lesson = plannedLesson(sample.classId, sample.day, sample.period);
-    if (!lesson) continue;
+    if (existingRequests.has(sample.id)) continue;
+    const planned = plannedLesson(
+      sample.classId,
+      sample.day,
+      sample.period,
+      start,
+    );
+    if (!planned) continue;
+    const current = existingLessons.get(planned.id);
+    const changed =
+      current &&
+      (current.teacher_id !== planned.base_teacher_id ||
+        current.date !== planned.base_date ||
+        current.period !== planned.base_period ||
+        current.room !== planned.base_room);
+    // A missing demonstration cannot replace an arrangement established while
+    // an old partial school was in use. Keep it as an inactive sample with an
+    // accurate current snapshot rather than claiming a new confirmation.
+    const status: Status = changed ? "Cancelled" : sample.status;
+    const lesson = changed
+      ? {
+          ...planned,
+          class_id: current.class_id,
+          subject: current.subject,
+          base_teacher_id: current.teacher_id,
+          base_date: current.date,
+          base_period: current.period,
+          base_room: current.room,
+          room: current.room,
+        }
+      : planned;
+    const date = changed ? current.date : addDays(start, sample.day);
+    const period = changed ? current.period : sample.period;
     const handover =
-      sample.status === "Draft"
-        ? { ...sampleHandover, progress: "" }
-        : sampleHandover;
+      status === "Draft" ? { ...sampleHandover, progress: "" } : sampleHandover;
     await run(
       db,
-      `INSERT INTO requests (id, lesson_id, class_id, subject, original_teacher_id, original_date, original_period, original_room, kind, target_date, target_period, target_room, recipient_id, reason_category, reason, handover_json, status, created_at, updated_at, is_demo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'substitute', ?, ?, ?, ?, 'leave', 'School schedule sample', ?, ?, ?, ?, 1)`,
+      `INSERT INTO requests (id, lesson_id, class_id, subject, original_teacher_id, original_date, original_period, original_room, kind, target_date, target_period, target_room, recipient_id, reason_category, reason, handover_json, status, created_at, updated_at, is_demo, transition_token) SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'substitute', ?, ?, ?, ?, 'leave', 'School schedule sample', ?, ?, ?, ?, 1, ? WHERE NOT EXISTS (SELECT 1 FROM requests WHERE id = ?) ON CONFLICT(id) DO NOTHING`,
       [
         sample.id,
         lesson.id,
@@ -758,100 +873,121 @@ async function insertSampleRequests(db: D1Database) {
         lesson.base_period,
         lesson.base_room,
         date,
-        sample.period,
+        period,
         lesson.room,
         sample.recipient,
         JSON.stringify(handover),
-        sample.status,
+        status,
         stamp,
         stamp,
+        token,
+        sample.id,
       ],
     );
-    await run(
+    await seedTimeline(
       db,
-      `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, 'Seed', 'created', '', ?)`,
-      [id(), sample.id, lesson.base_teacher_id, stamp],
+      sample.id,
+      token,
+      lesson.base_teacher_id,
+      "created",
+      "",
+      stamp,
     );
     if (
-      sample.status === "Pending" ||
-      sample.status === "Confirmed" ||
-      sample.status === "Declined" ||
-      sample.status === "Completed"
+      status === "Pending" ||
+      status === "Confirmed" ||
+      status === "Declined" ||
+      status === "Completed"
     ) {
-      await run(
+      await seedTimeline(
         db,
-        `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, 'Seed', 'submitted', '', ?)`,
-        [id(), sample.id, lesson.base_teacher_id, stamp],
+        sample.id,
+        token,
+        lesson.base_teacher_id,
+        "submitted",
+        "",
+        stamp,
       );
     }
-    if (sample.status === "Pending") {
+    if (status === "Pending") {
       await run(
         db,
-        `INSERT OR IGNORE INTO slot_locks (request_id, scope, scope_id, date, period) VALUES (?, 'class', ?, ?, ?)`,
-        [sample.id, lesson.class_id, date, sample.period],
+        `INSERT OR IGNORE INTO slot_locks (request_id, scope, scope_id, date, period) SELECT ?, 'class', ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
+        [sample.id, lesson.class_id, date, period, sample.id, token],
       );
       await run(
         db,
-        `INSERT OR IGNORE INTO slot_locks (request_id, scope, scope_id, date, period) VALUES (?, 'teacher', ?, ?, ?)`,
-        [sample.id, sample.recipient, date, sample.period],
+        `INSERT OR IGNORE INTO slot_locks (request_id, scope, scope_id, date, period) SELECT ?, 'teacher', ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
+        [sample.id, sample.recipient, date, period, sample.id, token],
       );
-      await notify(
+      await seedNotification(
         db,
-        sample.recipient,
         sample.id,
+        token,
+        sample.recipient,
         "pending",
         "New handover to confirm",
       );
     }
-    if (sample.status === "Confirmed" || sample.status === "Completed") {
+    if (status === "Confirmed" || status === "Completed") {
       await run(
         db,
-        `UPDATE lessons SET teacher_id = ?, date = ?, period = ?, room = ? WHERE id = ?`,
-        [sample.recipient, date, sample.period, lesson.room, lesson.id],
-      );
-      await run(
-        db,
-        `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, 'Seed', ?, ?, ?)`,
+        `UPDATE lessons SET teacher_id = ?, date = ?, period = ?, room = ? WHERE id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         [
-          id(),
-          sample.id,
           sample.recipient,
-          sample.status === "Confirmed" ? "confirmed" : "completed",
-          sample.comment,
-          stamp,
+          date,
+          period,
+          lesson.room,
+          lesson.id,
+          sample.id,
+          token,
         ],
       );
-      if (sample.status === "Confirmed") {
+      await seedTimeline(
+        db,
+        sample.id,
+        token,
+        sample.recipient,
+        status === "Confirmed" ? "confirmed" : "completed",
+        sample.comment,
+        stamp,
+      );
+      if (status === "Confirmed") {
         const classIndex = [
           "demo-class-7a",
           "demo-class-7b",
           "demo-class-8a",
         ].indexOf(lesson.class_id);
         for (let student = 0; student < 12; student += 1) {
-          await notify(
+          await seedNotification(
             db,
-            `demo-student-${classIndex * 12 + student}`,
             sample.id,
+            token,
+            `demo-student-${classIndex * 12 + student}`,
             "class_change",
             "Your class timetable changed",
           );
         }
       }
     }
-    if (sample.status === "Declined") {
-      await run(
+    if (status === "Declined") {
+      await seedTimeline(
         db,
-        `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at) VALUES (?, ?, ?, 'Seed', 'declined', ?, ?)`,
-        [id(), sample.id, sample.recipient, sample.comment, stamp],
+        sample.id,
+        token,
+        sample.recipient,
+        "declined",
+        sample.comment,
+        stamp,
       );
     }
   }
   const draftDate = addDays(start, 3);
-  const draftLesson = plannedLesson("demo-class-7b", 3, 3);
-  if (draftLesson) {
+  const draftLesson = plannedLesson("demo-class-7b", 3, 3, start);
+  if (draftLesson && !existingRequests.has("demo-request-draft")) {
     await run(
       db,
-      `INSERT INTO requests (id, lesson_id, class_id, subject, original_teacher_id, original_date, original_period, original_room, kind, target_date, target_period, target_room, recipient_id, reason_category, reason, handover_json, status, created_at, updated_at, is_demo) VALUES ('demo-request-draft', ?, ?, ?, ?, ?, ?, ?, 'substitute', ?, ?, ?, 'demo-teacher-2', 'training', 'Draft still missing progress', ?, 'Draft', ?, ?, 1)`,
+      `INSERT INTO requests (id, lesson_id, class_id, subject, original_teacher_id, original_date, original_period, original_room, kind, target_date, target_period, target_room, recipient_id, reason_category, reason, handover_json, status, created_at, updated_at, is_demo, transition_token) SELECT 'demo-request-draft', ?, ?, ?, ?, ?, ?, ?, 'substitute', ?, ?, ?, 'demo-teacher-2', 'training', 'Draft still missing progress', ?, 'Draft', ?, ?, 1, ? WHERE NOT EXISTS (SELECT 1 FROM requests WHERE id = 'demo-request-draft') ON CONFLICT(id) DO NOTHING`,
       [
         draftLesson.id,
         draftLesson.class_id,
@@ -866,6 +1002,7 @@ async function insertSampleRequests(db: D1Database) {
         JSON.stringify({ ...sampleHandover, progress: "" }),
         stamp,
         stamp,
+        token,
       ],
     );
   }

@@ -6,10 +6,11 @@ const persist = `${process.cwd()}/.wrangler/built-e2e`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "**/built-offline.spec.ts",
+  testMatch: "**/built-*.spec.ts",
   timeout: 120_000,
   expect: { timeout: 60_000 },
   fullyParallel: false,
+  workers: 1,
   retries: 0,
   reporter: "list",
   use: {
