@@ -1,0 +1,3 @@
+worker-state/
+*.log
+artifacts/

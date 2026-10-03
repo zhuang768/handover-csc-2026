@@ -1,20 +1,35 @@
 {
-  "status": "ready_for_review",
-  "round": 4,
-  "updatedAt": "2026-10-04T01:50:19+08:00",
+  "status": "ready_for_delivery",
+  "round": 5,
+  "updatedAt": "2026-10-04T02:43:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "6b7b7cd734e9af06785d7f854d75dc8f3a160c6f",
+  "gitHead": "9538135128b95cf2d14db9f154d7aac53ba86e46",
   "completedRequirements": [
-    "R04 complete legacy school stays usable and keeps every established non-meta row",
-    "R04 partial legacy school rebuilds lessons without rewriting edited demo profiles, real accounts, or sessions",
-    "Latest independent suite is 85 passed, 0 failed, including the row-preservation case",
-    "Phone width has one bottom navigation plus More; simple view applies only to the signed-in student",
-    "401 leaves the signed-in shell; session check failure is not a normal sign-out",
-    "Built worker GET /offline.html returned 200 with no Location; offline reload showed the public bilingual page",
-    "Service worker probe at the product SHA passed 28 of 28",
-    "Approved handbook colors and type remain"
+    "R05 atomic legacy repair preserves established lessons, ordinary accounts, sessions and relations",
+    "Exact known demo material stub repaired without changing custom URLs",
+    "Pending writes block PWA updates; dirty form guard preserved",
+    "Cross-week notification error remains visible",
+    "True signed-in tablet screenshot and correct iOS installation sequence",
+    "Product33 / independent85 / dev9 / built6 / historical3 passed; format/lint/types/build passed"
   ],
-  "checks": [
+  "publicUrl": null,
+  "githubUrl": null,
+  "knownLimitations": [
+    "No email provider: password reset uses a one-time recovery code stored only as a PBKDF2 hash.",
+    "Day-before reminders are created when a workspace loads, not by a background push.",
+    "Confirmed lessons can be marked Completed before the lesson time. The spec has no time gate.",
+    "Noto Sans TC in the app is a UI-string subset. Longer teacher text uses the next installed Traditional Chinese font.",
+    "Product license is unspecified. Font and icon notices are in CREDITS.md.",
+    "No public deployment and no GitHub push in this round.",
+    "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof.",
+    "Root verified a real local R03-to-R04 SW update with a dirty profile guard. R05 pending-write cases use an explicit waiting-worker UI seam and real HTTP mutations; neither is physical-phone installation evidence."
+  ],
+  "blockers": [
+    "GitHub upload/CI and public HTTPS release pending"
+  ],
+  "repairOwner": "Codex",
+  "reason": "Cursor usage exhausted before R05 product edits; Codex implements the existing repair scope.",
+  "historicalR04Checks": [
     {
       "command": "npm test",
       "cwd": "handover",
@@ -70,17 +85,42 @@
       "summary": "28 passed, 0 failed. Public offline path remains /offline.html."
     }
   ],
-  "publicUrl": null,
-  "githubUrl": null,
-  "knownLimitations": [
-    "No email provider: password reset uses a one-time recovery code stored only as a PBKDF2 hash.",
-    "Day-before reminders are created when a workspace loads, not by a background push.",
-    "Confirmed lessons can be marked Completed before the lesson time. The spec has no time gate.",
-    "Noto Sans TC in the app is a UI-string subset. Longer teacher text uses the next installed Traditional Chinese font.",
-    "Product license is unspecified. Font and icon notices are in CREDITS.md.",
-    "No public deployment and no GitHub push in this round.",
-    "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof.",
-    "The update button waits for controllerchange, but a browser run with two service-worker versions was not executed."
+  "checks": [
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "summary": "33 passed"
+    },
+    {
+      "command": "format:check / lint / typecheck / build",
+      "exitCode": 0,
+      "summary": "All passed on final frozen source"
+    },
+    {
+      "command": "npm run test:e2e",
+      "exitCode": 0,
+      "summary": "9 passed, 15.6 seconds"
+    },
+    {
+      "command": "built Playwright config after npm run build",
+      "exitCode": 0,
+      "summary": "6 passed, 5.6 seconds; offline200 noLocation"
+    },
+    {
+      "command": "independent API + reviewer harness",
+      "exitCode": 0,
+      "summary": "85 passed, zero skipped"
+    },
+    {
+      "command": "fixed-tree historical-upgrade-probe",
+      "exitCode": 0,
+      "summary": "3 passed, zero skipped; exact Drizzle comments normalized in wrapper guard"
+    },
+    {
+      "command": "local built HTTP four-session flow",
+      "exitCode": 0,
+      "summary": "Conflict, lifecycle, student privacy/preparation, restoration and logout passed"
+    }
   ],
-  "blockers": []
+  "appTree": "f611d50eaaa655e955d8ac113f7b55bd41cae6f3"
 }

@@ -7,8 +7,10 @@ import { resolve } from 'node:path';
 export function reviewDatabase() {
   const connection = new DatabaseSync(':memory:');
   const directory = resolve(import.meta.dirname, '../handover/drizzle');
+  const appliedMigrations: string[] = [];
   for (const file of readdirSync(directory).filter(name => name.endsWith('.sql')).sort()) {
     connection.exec(readFileSync(resolve(directory, file), 'utf8'));
+    appliedMigrations.push(file);
   }
   class Statement {
     sql: string;
@@ -42,12 +44,20 @@ export function reviewDatabase() {
         connection.exec('COMMIT');
         return results;
       } catch (error) {
-        connection.exec('ROLLBACK');
+        // RAISE(ROLLBACK) may already have ended the SQLite transaction. Do not
+        // replace its original constraint/trigger error with a second rollback
+        // error; API error handling must see the actual failed SQL operation.
+        if (Reflect.get(connection, 'isTransaction') !== false) {
+          try { connection.exec('ROLLBACK'); }
+          catch (rollbackError) {
+            if (error instanceof Error) Object.defineProperty(error, 'rollbackError', { value: rollbackError });
+          }
+        }
         throw error;
       }
     },
     async exec(sql: string) { connection.exec(sql); return { count: 1, duration: 0 }; },
     withSession() { return this; },
   };
-  return { database: database as unknown as D1Database, connection, close: () => connection.close() };
+  return { database: database as unknown as D1Database, connection, appliedMigrations: Object.freeze(appliedMigrations), close: () => connection.close() };
 }
