@@ -1,0 +1,1 @@
+ALTER TABLE `requests` ADD `transition_token` text;

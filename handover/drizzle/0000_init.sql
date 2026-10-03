@@ -7,20 +7,20 @@ CREATE TABLE `audit_log` (
 	`detail` text NOT NULL,
 	`is_demo` integer DEFAULT 1 NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `auth_attempts` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`bucket` text NOT NULL,
 	`at` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX `auth_attempts_bucket` ON `auth_attempts` (`bucket`,`at`);
 CREATE TABLE `classes` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`is_demo` integer DEFAULT 1 NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `lessons` (
 	`id` text PRIMARY KEY NOT NULL,
 	`class_id` text NOT NULL,
@@ -35,14 +35,14 @@ CREATE TABLE `lessons` (
 	`base_room` text NOT NULL,
 	`is_demo` integer DEFAULT 1 NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX `lessons_class_slot` ON `lessons` (`class_id`,`date`,`period`);
 CREATE UNIQUE INDEX `lessons_one_teacher_slot` ON `lessons` (`teacher_id`,`date`,`period`);
 CREATE TABLE `meta` (
 	`key` text PRIMARY KEY NOT NULL,
 	`value` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `notifications` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE `notifications` (
 	`created_at` text NOT NULL,
 	`read` integer DEFAULT 0 NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `requests` (
 	`id` text PRIMARY KEY NOT NULL,
 	`lesson_id` text NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE `requests` (
 	`updated_at` text NOT NULL,
 	`is_demo` integer DEFAULT 1 NOT NULL
 );
-
+--> statement-breakpoint
 CREATE UNIQUE INDEX `open_request_per_lesson` ON `requests` (`lesson_id`) WHERE status IN ('Draft', 'Pending', 'Confirmed', 'Declined');
 CREATE INDEX `requests_status` ON `requests` (`status`,`updated_at`);
 CREATE TABLE `sessions` (
@@ -84,7 +84,7 @@ CREATE TABLE `sessions` (
 	`expires_at` text NOT NULL,
 	`created_at` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX `sessions_user` ON `sessions` (`user_id`);
 CREATE TABLE `slot_locks` (
 	`request_id` text NOT NULL,
@@ -94,7 +94,7 @@ CREATE TABLE `slot_locks` (
 	`period` integer NOT NULL,
 	PRIMARY KEY(`scope`, `scope_id`, `date`, `period`)
 );
-
+--> statement-breakpoint
 CREATE TABLE `supplements` (
 	`id` text PRIMARY KEY NOT NULL,
 	`request_id` text NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE `supplements` (
 	`text` text NOT NULL,
 	`at` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `timeline` (
 	`id` text PRIMARY KEY NOT NULL,
 	`request_id` text NOT NULL,
@@ -113,7 +113,7 @@ CREATE TABLE `timeline` (
 	`comment` text DEFAULT '' NOT NULL,
 	`at` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE TABLE `todos` (
 	`user_id` text NOT NULL,
 	`request_id` text NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE `todos` (
 	`done` integer NOT NULL,
 	PRIMARY KEY(`user_id`, `request_id`, `key`)
 );
-
+--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`email` text NOT NULL,
@@ -135,7 +135,7 @@ CREATE TABLE `users` (
 	`active` integer DEFAULT 1 NOT NULL,
 	`created_at` text NOT NULL
 );
-
+--> statement-breakpoint
 CREATE UNIQUE INDEX `users_email_unique` ON `users` (`email`);
 CREATE TABLE `views` (
 	`user_id` text NOT NULL,

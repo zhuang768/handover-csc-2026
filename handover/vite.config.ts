@@ -72,6 +72,9 @@ export default defineConfig(async ({ command }) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
+        persistState: {
+          path: process.env.HANDOVER_PERSIST ?? ".wrangler/state",
+        },
         config: {
           ...localBindingConfig,
           ...(command === "serve"

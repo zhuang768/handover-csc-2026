@@ -3,6 +3,9 @@ handover/node_modules/
 handover/dist/
 handover/.next/
 handover/.wrangler/
+handover/tsconfig.tsbuildinfo
+handover/test-results/
+handover/playwright-report/
 handover/.vinext/
 handover/.sites-runtime/
 handover/.env

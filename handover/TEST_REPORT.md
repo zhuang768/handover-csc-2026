@@ -33,6 +33,25 @@ npm run typecheck     # exit 0
 
 `npm run build` completed with exit 0 on 2026-10-03 (`vinext build`, route `/` and `/api/:path*`).
 
+## Round 3, 2026-10-04
+
+Round 2’s independent re-review did not pass. This section is only the later local run.
+
+From `handover/`:
+
+- `npm test` — exit 0, 26 passed (24 API + 2 PWA file checks).
+- `npm run lint` — exit 0.
+- `npm run format:check` — exit 0.
+- `npm run typecheck` — exit 0.
+- `npm run build` — exit 0. `dist/client/sw.js` is JavaScript, not an HTML fallback.
+- `npm run db:generate` — exit 0, no schema changes after `0001_opposite_kree.sql`.
+- `HANDOVER_PERSIST=/tmp/handover-r03-empty npm run db:migrate` — exit 0, applied `0000_init.sql` and `0001_opposite_kree.sql`. The same command again — exit 0, no migrations to apply.
+- `npm run test:e2e` — exit 0, 6 passed. Chromium viewports included 390, 768, and 1440. Screenshots are in `docs/screenshots/`. This is a desktop browser at those sizes. A physical iPhone or Android install was not run.
+
+From the repo root:
+
+- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 82 passed, 0 failed. The Codex test files were not edited.
+
 ## Round 2, 2026-10-04
 
 `npm test` 24 passed. `npm run lint`, `format:check`, `typecheck`, and `build` exited 0. From the repo root, the Codex harness and independent API file exited 0 with 73 passed. Those files were not edited.

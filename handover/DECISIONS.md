@@ -4,7 +4,7 @@ Checked against the existing Vinext / Cloudflare Workers skeleton on 2026-10-03.
 
 ## Persistence
 
-Cloudflare D1 binding `DB` is the only store for accounts, sessions, timetables, handovers, todos, notifications, and the audit log. Tables are declared in `db/schema.ts`. `drizzle/0000_init.sql` and `drizzle/meta` are the Drizzle migration and snapshot. The request path does not create tables. An empty database is migrated, then the first API call seeds the demo school if `users` is empty. Local tests apply the same SQL through `node:sqlite`. `db.batch` in the test adapter runs every statement before another batch can start.
+Cloudflare D1 binding `DB` is the only store for accounts, sessions, timetables, handovers, todos, notifications, and the audit log. Tables are declared in `db/schema.ts`. `drizzle/0000_init.sql` and `drizzle/meta` are the Drizzle migration and snapshot. The request path does not create tables. An empty database is migrated with `npm run db:migrate`, then the first API call seeds the demo school in one batch. The seed is complete only when `meta.seed_complete` is `1` and lessons exist. A failed seed rolls the batch back. A parallel first login waits for that complete seed instead of returning 409. `npm run dev` migrates `.wrangler/state` before the server starts. Set `HANDOVER_PERSIST` to use another local D1 directory. Local tests apply the same SQL through `node:sqlite`. `db.batch` in the test adapter runs every statement before another batch can start.
 
 ## Auth
 
@@ -14,7 +14,7 @@ Cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` only on HTTPS. Mutations re
 
 ## Schedule and privacy
 
-School dates are `Asia/Taipei` calendar dates. On Saturday or Sunday the default week is the next Monday, and Saturday itself has no lessons. A move or substitute is reserved with a unique slot lock when it is submitted. Accepting rechecks the slot inside the same batch as the lesson write. A unique teacher slot index rolls that batch back if two lessons would share a teacher, date, and period. Cancelling a confirmed change restores the snapshot stored on that request (`original_*`), which is the lesson arrangement at draft time, and only if the class slot, teacher slot, and pending locks are free. Confirmed lessons may be marked Completed before the lesson time; the written spec has no time gate, so none was added.
+School dates are `Asia/Taipei` calendar dates. On Saturday or Sunday the default week is the next Monday, and Saturday itself has no lessons. A move or substitute is reserved with a unique slot lock when it is submitted. Submitting rechecks the class and teacher lesson rows inside the same update that marks the request Pending. Accepting rechecks the slot inside the same batch as the lesson write. Timeline, audit, and notification rows for a transition are inserted only when that batch wrote this attempt’s `transition_token`. A unique teacher slot index rolls that batch back if two lessons would share a teacher, date, and period. Cancelling a confirmed change restores the snapshot stored on that request (`original_*`), which is the lesson arrangement at draft time, and only if the class slot, teacher slot, and pending locks are free. Confirmed lessons may be marked Completed before the lesson time; the written spec has no time gate, so none was added.
 
 Students do not receive `reason`, `reasonCategory`, `teacherNotes`, supplement text, or timeline comments. Progress, plan, materials, assessment, equipment, and the student reminder stay visible after confirmation.
 
@@ -22,6 +22,10 @@ Students do not receive `reason`, `reasonCategory`, `teacherNotes`, supplement t
 
 Seeded people, lessons, and requests are marked `is_demo = 1`. Reset deletes only those rows, rebuilds the sample school, and keeps `is_demo = 0` registrations. Day-before reminders are created when someone loads the workspace, not by a background push.
 
+## Installed web app
+
+Handover is used from a URL and can be added to the home screen. `public/sw.js` precaches only the offline page, icons, and manifest. Navigations are network-first. API, auth, and non-GET requests are not cached. An offline submit is not reported as success. A new version reloads only when the user asks and no draft editor is open.
+
 ## Deferred
 
-Public deployment, GitHub push, Playwright viewport screenshots, and a parent/QR card are not claimed as done. Subject templates in the editor are deterministic starters, not an AI model.
+Public deployment and GitHub push are not claimed as done. A physical iPhone or Android “Add to Home Screen, then open standalone” check was not run. Subject templates in the editor are deterministic starters, not an AI model.

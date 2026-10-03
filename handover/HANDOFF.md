@@ -1,6 +1,6 @@
 # Handoff
 
-Branch `handover`. Round 2 is ready for Codex review. Do not treat this file as a pass.
+Branch `handover`. Round 3 is ready for Codex review. Round 2 did not pass independent re-review. Do not treat this file as a pass.
 
 ## What changed
 
@@ -28,7 +28,8 @@ Branch `handover`. Round 2 is ready for Codex review. Do not treat this file as 
 
 From `handover/`:
 
-- `npm test` — exit 0, 24 passed.
+- `npm test` — exit 0, 26 passed.
+- `npm run test:e2e` — exit 0, 6 passed. Desktop Chromium only; no physical phone install.
 - `npm run lint` — exit 0.
 - `npm run format:check` — exit 0.
 - `npm run typecheck` — exit 0 (`tsc --noEmit` during the same session).
@@ -36,7 +37,7 @@ From `handover/`:
 
 From the repo root:
 
-- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 73 passed.
+- `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 82 passed, 0 failed.
 
 Browser notes are filled in `TEST_REPORT.md` after the local session. Public deploy and GitHub push were not done.
 

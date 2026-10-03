@@ -261,6 +261,8 @@ function clampText(value: unknown, max: number) {
 }
 
 function safeUrl(value: string) {
+  if (value.startsWith("/") && !value.startsWith("//") && !value.includes(".."))
+    return true;
   try {
     const url = new URL(value);
     return url.protocol === "https:" || url.protocol === "http:";
@@ -347,16 +349,63 @@ async function readBody(request: Request) {
   }
 }
 
-async function seedIfEmpty(db: D1Database) {
-  const count = await one<{ n: number }>(db, `SELECT COUNT(*) AS n FROM users`);
-  if ((count?.n ?? 0) > 0) return;
-  const claimed = await one<{ key: string }>(
+async function schoolReady(db: D1Database) {
+  const marker = await one<{ value: string }>(
     db,
-    `SELECT key FROM meta WHERE key = 'seeded'`,
+    `SELECT value FROM meta WHERE key = 'seed_complete'`,
   );
-  if (claimed) return;
-  await run(db, `INSERT INTO meta (key, value) VALUES ('seeded', '1')`);
-  await seedSchool(db);
+  const lessons = await one<{ n: number }>(
+    db,
+    `SELECT COUNT(*) AS n FROM lessons`,
+  );
+  return marker?.value === "1" && (lessons?.n ?? 0) > 0;
+}
+
+function collectingDatabase(db: D1Database, bucket: D1PreparedStatement[]) {
+  function wrap(statement: D1PreparedStatement): D1PreparedStatement {
+    return new Proxy(statement, {
+      get(target, key) {
+        if (key === "bind") {
+          return (...values: unknown[]) =>
+            wrap(target.bind(...(values as never[])));
+        }
+        if (key === "run") {
+          return async () => {
+            bucket.push(target);
+            return {
+              success: true,
+              meta: { changes: 1, duration: 0, last_row_id: 0 },
+              results: [],
+            };
+          };
+        }
+        const value = Reflect.get(target, key, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as D1PreparedStatement;
+  }
+  return new Proxy(db, {
+    get(target, key) {
+      if (key === "prepare") return (sql: string) => wrap(target.prepare(sql));
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  }) as D1Database;
+}
+
+async function seedIfEmpty(db: D1Database) {
+  if (await schoolReady(db)) return;
+  const bucket: D1PreparedStatement[] = [];
+  await seedSchool(collectingDatabase(db, bucket));
+  bucket.push(
+    db.prepare(`INSERT INTO meta (key, value) VALUES ('seed_complete', '1')`),
+  );
+  try {
+    await db.batch(bucket);
+  } catch (error) {
+    if (await schoolReady(db)) return;
+    throw error;
+  }
 }
 
 async function seedSchool(db: D1Database) {
@@ -567,7 +616,7 @@ const sampleHandover = {
   progress: "Quadratic equations, page 42",
   plan: "Solve two worked examples, then pair practice.",
   materials: [
-    { title: "Practice worksheet", url: "https://example.org/worksheet" },
+    { title: "Practice worksheet", url: "/worksheets/class-practice.txt" },
   ],
   assessment: "Bring the worksheet. Quiz postponed to Friday.",
   equipment: "Room whiteboard and projector",
@@ -575,6 +624,24 @@ const sampleHandover = {
   teacherNotes:
     "PRIVATE_TEACHER_NOTE Offer a quiet corner to anyone who needs extra time.",
 };
+
+function plannedLesson(classId: string, day: number, period: number) {
+  const row = pattern().find(
+    (item) => item[0] === classId && item[1] === day && item[2] === period,
+  );
+  if (!row) return null;
+  const date = addDays(defaultSchoolMonday(), day);
+  return {
+    id: `demo-lesson-${classId}-${date}-${period}`,
+    class_id: classId,
+    subject: row[3],
+    base_teacher_id: row[4],
+    base_date: date,
+    base_period: period,
+    base_room: row[5],
+    room: row[5],
+  };
+}
 
 async function insertSampleRequests(db: D1Database) {
   const start = defaultSchoolMonday();
@@ -645,11 +712,7 @@ async function insertSampleRequests(db: D1Database) {
   ];
   for (const sample of samples) {
     const date = addDays(start, sample.day);
-    const lesson = await one<LessonRow>(
-      db,
-      `SELECT * FROM lessons WHERE class_id = ? AND date = ? AND period = ?`,
-      [sample.classId, date, sample.period],
-    );
+    const lesson = plannedLesson(sample.classId, sample.day, sample.period);
     if (!lesson) continue;
     const handover =
       sample.status === "Draft"
@@ -731,14 +794,22 @@ async function insertSampleRequests(db: D1Database) {
           stamp,
         ],
       );
-      if (sample.status === "Confirmed")
-        await notifyClass(
-          db,
-          lesson.class_id,
-          sample.id,
-          "class_change",
-          "Your class timetable changed",
-        );
+      if (sample.status === "Confirmed") {
+        const classIndex = [
+          "demo-class-7a",
+          "demo-class-7b",
+          "demo-class-8a",
+        ].indexOf(lesson.class_id);
+        for (let student = 0; student < 12; student += 1) {
+          await notify(
+            db,
+            `demo-student-${classIndex * 12 + student}`,
+            sample.id,
+            "class_change",
+            "Your class timetable changed",
+          );
+        }
+      }
     }
     if (sample.status === "Declined") {
       await run(
@@ -749,11 +820,7 @@ async function insertSampleRequests(db: D1Database) {
     }
   }
   const draftDate = addDays(start, 3);
-  const draftLesson = await one<LessonRow>(
-    db,
-    `SELECT * FROM lessons WHERE class_id = 'demo-class-7b' AND date = ? AND period = 3`,
-    [draftDate],
-  );
+  const draftLesson = plannedLesson("demo-class-7b", 3, 3);
   if (draftLesson) {
     await run(
       db,
@@ -789,22 +856,6 @@ async function notify(
     `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read) VALUES (?, ?, ?, ?, ?, ?, 0)`,
     [id(), userId, requestId, event, title, nowIso()],
   );
-}
-
-async function notifyClass(
-  db: D1Database,
-  classId: string,
-  requestId: string,
-  event: string,
-  title: string,
-) {
-  const students = await all<{ id: string }>(
-    db,
-    `SELECT id FROM users WHERE role = 'student' AND class_id = ? AND active = 1`,
-    [classId],
-  );
-  for (const student of students)
-    await notify(db, student.id, requestId, event, title);
 }
 
 async function audit(
@@ -1334,11 +1385,12 @@ async function submitRequest(db: D1Database, actor: UserRow, row: RequestRow) {
   const report = await conflictReport(db, input, row.id);
   if (report.conflicts.length) throw new HttpError(409, "SCHEDULE_CONFLICT");
   const stamp = nowIso();
+  const token = crypto.randomUUID();
   try {
     const results = await db.batch([
       db
         .prepare(
-          `UPDATE requests SET status = 'Pending', updated_at = ?
+          `UPDATE requests SET status = 'Pending', transition_token = ?, updated_at = ?
            WHERE id = ? AND status IN ('Draft', 'Declined')
              AND length(trim(json_extract(handover_json, '$.progress'))) > 0
              AND length(trim(json_extract(handover_json, '$.plan'))) > 0
@@ -1352,31 +1404,51 @@ async function submitRequest(db: D1Database, actor: UserRow, row: RequestRow) {
                  AND (
                    json_extract(value, '$.url') LIKE 'https://%'
                    OR json_extract(value, '$.url') LIKE 'http://%'
+                   OR (
+                     json_extract(value, '$.url') LIKE '/%'
+                     AND json_extract(value, '$.url') NOT LIKE '//%'
+                     AND instr(json_extract(value, '$.url'), '..') = 0
+                   )
                  )
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> requests.lesson_id
+                 AND other.class_id = requests.class_id
+                 AND other.date = requests.target_date
+                 AND other.period = requests.target_period
+             )
+             AND NOT EXISTS (
+               SELECT 1 FROM lessons AS other
+               WHERE other.id <> requests.lesson_id
+                 AND other.teacher_id = requests.recipient_id
+                 AND other.date = requests.target_date
+                 AND other.period = requests.target_period
              )`,
         )
-        .bind(stamp, row.id),
+        .bind(token, stamp, row.id),
       db
         .prepare(
           `INSERT INTO slot_locks (request_id, scope, scope_id, date, period)
-           SELECT id, 'class', class_id, target_date, target_period FROM requests WHERE id = ? AND status = 'Pending'`,
+           SELECT id, 'class', class_id, target_date, target_period FROM requests WHERE id = ? AND transition_token = ?`,
         )
-        .bind(row.id),
+        .bind(row.id, token),
       db
         .prepare(
           `INSERT INTO slot_locks (request_id, scope, scope_id, date, period)
-           SELECT id, 'teacher', recipient_id, target_date, target_period FROM requests WHERE id = ? AND status = 'Pending'`,
+           SELECT id, 'teacher', recipient_id, target_date, target_period FROM requests WHERE id = ? AND transition_token = ?`,
         )
-        .bind(row.id),
+        .bind(row.id, token),
     ]);
     if ((results[0]?.meta?.changes ?? 0) !== 1) {
       const current = await requestById(db, row.id);
       if (current.status === "Draft" || current.status === "Declined") {
-        throw new HttpError(
-          422,
-          "INCOMPLETE_HANDOVER",
-          missingHandover(JSON.parse(current.handover_json) as Handover),
+        const fields = missingHandover(
+          JSON.parse(current.handover_json) as Handover,
         );
+        if (fields.length)
+          throw new HttpError(422, "INCOMPLETE_HANDOVER", fields);
+        throw new HttpError(409, "SCHEDULE_CONFLICT");
       }
       throw new HttpError(409, "INVALID_STATE");
     }
@@ -1414,22 +1486,23 @@ async function respond(
   if (decision !== "accept" && decision !== "decline")
     throw new HttpError(422, "VALIDATION_ERROR");
   const stamp = nowIso();
+  const token = crypto.randomUUID();
   if (decision === "decline") {
     const results = await db.batch([
       db
         .prepare(
-          `UPDATE requests SET status = 'Declined', updated_at = ? WHERE id = ? AND status = 'Pending'`,
+          `UPDATE requests SET status = 'Declined', transition_token = ?, updated_at = ? WHERE id = ? AND status = 'Pending'`,
         )
-        .bind(stamp, row.id),
+        .bind(token, stamp, row.id),
       db
         .prepare(
-          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(row.id, row.id),
+        .bind(row.id, row.id, token),
       db
         .prepare(
           `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
-           SELECT ?, ?, ?, ?, 'declined', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+           SELECT ?, ?, ?, ?, 'declined', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1439,17 +1512,18 @@ async function respond(
           comment.slice(0, 500),
           stamp,
           row.id,
+          token,
         ),
       db
         .prepare(
           `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
-           SELECT ?, ?, ?, 'declined', 'Handover returned', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+           SELECT ?, ?, ?, 'declined', 'Handover returned', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(id(), row.original_teacher_id, row.id, stamp, row.id),
+        .bind(id(), row.original_teacher_id, row.id, stamp, row.id, token),
       db
         .prepare(
           `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
-           SELECT ?, ?, 'request.declined', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Declined')`,
+           SELECT ?, ?, 'request.declined', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1459,6 +1533,7 @@ async function respond(
           comment.slice(0, 120),
           actor.is_demo,
           row.id,
+          token,
         ),
     ]);
     if ((results[0]?.meta?.changes ?? 0) !== 1)
@@ -1505,13 +1580,14 @@ async function respond(
         ),
       db
         .prepare(
-          `UPDATE requests SET status = 'Confirmed', updated_at = ?
+          `UPDATE requests SET status = 'Confirmed', transition_token = ?, updated_at = ?
            WHERE id = ? AND status = 'Pending'
              AND EXISTS (
                SELECT 1 FROM lessons WHERE id = ? AND teacher_id = ? AND date = ? AND period = ? AND room = ?
              )`,
         )
         .bind(
+          token,
           stamp,
           row.id,
           row.lesson_id,
@@ -1522,13 +1598,13 @@ async function respond(
         ),
       db
         .prepare(
-          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(row.id, row.id),
+        .bind(row.id, row.id, token),
       db
         .prepare(
           `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
-           SELECT ?, ?, ?, ?, 'confirmed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+           SELECT ?, ?, ?, ?, 'confirmed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1538,26 +1614,27 @@ async function respond(
           comment.slice(0, 500),
           stamp,
           row.id,
+          token,
         ),
       db
         .prepare(
           `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
-           SELECT ?, ?, ?, 'accepted', 'Handover accepted', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+           SELECT ?, ?, ?, 'accepted', 'Handover accepted', ?, 0 WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(id(), row.original_teacher_id, row.id, stamp, row.id),
+        .bind(id(), row.original_teacher_id, row.id, stamp, row.id, token),
       db
         .prepare(
           `INSERT INTO notifications (id, user_id, request_id, event, title, created_at, read)
            SELECT lower(hex(randomblob(16))), users.id, ?, 'class_change', 'Your class timetable changed', ?, 0
            FROM users
            WHERE users.role = 'student' AND users.class_id = ? AND users.active = 1
-             AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+             AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(row.id, stamp, row.class_id, row.id),
+        .bind(row.id, stamp, row.class_id, row.id, token),
       db
         .prepare(
           `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
-           SELECT ?, ?, 'request.confirmed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Confirmed')`,
+           SELECT ?, ?, 'request.confirmed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1567,6 +1644,7 @@ async function respond(
           row.subject.slice(0, 300),
           actor.is_demo,
           row.id,
+          token,
         ),
     ]);
     if ((results[1]?.meta?.changes ?? 0) !== 1) {
@@ -1593,19 +1671,20 @@ async function setStatus(
   if (status !== "Completed" && status !== "Cancelled")
     throw new HttpError(422, "VALIDATION_ERROR");
   const stamp = nowIso();
+  const token = crypto.randomUUID();
   if (status === "Completed") {
     if (actor.id !== row.original_teacher_id && actor.id !== row.recipient_id)
       throw new HttpError(403, "FORBIDDEN");
     const results = await db.batch([
       db
         .prepare(
-          `UPDATE requests SET status = 'Completed', updated_at = ? WHERE id = ? AND status = 'Confirmed'`,
+          `UPDATE requests SET status = 'Completed', transition_token = ?, updated_at = ? WHERE id = ? AND status = 'Confirmed'`,
         )
-        .bind(stamp, row.id),
+        .bind(token, stamp, row.id),
       db
         .prepare(
           `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
-           SELECT ?, ?, ?, ?, 'completed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Completed')`,
+           SELECT ?, ?, ?, ?, 'completed', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1615,11 +1694,12 @@ async function setStatus(
           comment.slice(0, 500),
           stamp,
           row.id,
+          token,
         ),
       db
         .prepare(
           `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
-           SELECT ?, ?, 'request.completed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Completed')`,
+           SELECT ?, ?, 'request.completed', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1629,6 +1709,7 @@ async function setStatus(
           row.subject.slice(0, 300),
           actor.is_demo,
           row.id,
+          token,
         ),
     ]);
     if ((results[0]?.meta?.changes ?? 0) !== 1)
@@ -1691,7 +1772,7 @@ async function setStatus(
         ),
       db
         .prepare(
-          `UPDATE requests SET status = 'Cancelled', updated_at = ?
+          `UPDATE requests SET status = 'Cancelled', transition_token = ?, updated_at = ?
            WHERE id = ? AND (
              status IN ('Draft', 'Pending', 'Declined')
              OR (
@@ -1704,6 +1785,7 @@ async function setStatus(
            )`,
         )
         .bind(
+          token,
           stamp,
           row.id,
           row.lesson_id,
@@ -1714,13 +1796,13 @@ async function setStatus(
         ),
       db
         .prepare(
-          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+          `DELETE FROM slot_locks WHERE request_id = ? AND EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
-        .bind(row.id, row.id),
+        .bind(row.id, row.id, token),
       db
         .prepare(
           `INSERT INTO timeline (id, request_id, actor_id, actor_name, action, comment, at)
-           SELECT ?, ?, ?, ?, 'cancelled', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+           SELECT ?, ?, ?, ?, 'cancelled', ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1730,11 +1812,12 @@ async function setStatus(
           comment.slice(0, 500),
           stamp,
           row.id,
+          token,
         ),
       db
         .prepare(
           `INSERT INTO audit_log (id, actor_name, action, entity_id, at, detail, is_demo)
-           SELECT ?, ?, 'request.cancelled', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND status = 'Cancelled')`,
+           SELECT ?, ?, 'request.cancelled', ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM requests WHERE id = ? AND transition_token = ?)`,
         )
         .bind(
           id(),
@@ -1744,6 +1827,7 @@ async function setStatus(
           row.subject.slice(0, 300),
           actor.is_demo,
           row.id,
+          token,
         ),
     ]);
     if ((results[1]?.meta?.changes ?? 0) !== 1) {
@@ -1904,14 +1988,14 @@ async function workspace(
           id: `risk-${item.id}`,
           requestId: item.id,
           kind: "unconfirmed",
-          message: `${item.className} ${item.subject} is still unconfirmed.`,
+          message: "unconfirmed",
         });
       if (item.status === "Declined")
         risks.push({
           id: `risk-d-${item.id}`,
           requestId: item.id,
           kind: "declined",
-          message: `${item.className} ${item.subject} was returned.`,
+          message: "returned",
         });
     }
   }

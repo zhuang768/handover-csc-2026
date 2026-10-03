@@ -85,6 +85,7 @@ export const requests = sqliteTable(
     reason: text("reason").notNull(),
     handoverJson: text("handover_json").notNull(),
     status: text("status").notNull(),
+    transitionToken: text("transition_token"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     isDemo: integer("is_demo").notNull().default(1),

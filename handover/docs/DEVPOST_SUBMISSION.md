@@ -83,13 +83,13 @@ Operational next steps include school-approved account provisioning, email recov
 
 ## Built with
 
-React 19 · TypeScript · Vinext · Cloudflare Workers · Cloudflare D1 / SQLite · OpenAI Codex
+React 19 · TypeScript · Vinext · Cloudflare Workers · Cloudflare D1 / SQLite · installable web app · OpenAI Codex · Cursor
 
 `[CONFIRM: add the actual tested UI, validation, styling, and testing libraries from package.json; remove tools that were not used.]`
 
 ## AI-use disclosure
 
-OpenAI Codex assisted substantially with architecture, implementation, interface copy, synthetic demo scenarios, testing, debugging, official-rule research, and submission materials. The human participant supplied the school problem and the required handover-first workflow. AI-generated code and copy require review, and the participant must be able to explain the final product. This is development assistance; no model-inference feature is claimed as part of the core product. Full disclosure: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+OpenAI Codex and Cursor assisted substantially with architecture, implementation, interface copy, synthetic demo scenarios, testing, debugging, official-rule research, and submission materials. The human participant supplied the school problem and the required handover-first workflow. AI-generated code and copy require review, and the participant must be able to explain the final product. This is development assistance; no model-inference feature is claimed as part of the core product. Prior pieces include the Vinext starter, Manrope, a Noto Sans TC interface subset, and Lucide. Full disclosure: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
 
 ## Links and team
 

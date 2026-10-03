@@ -35,6 +35,33 @@ import {
   schoolToday,
 } from "@/shared/time";
 import "./handover.css";
+import { InstallGuide } from "./install-guide";
+
+function localWhen(value: string, language: Language) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-Hant-TW" : "en", {
+    timeZone: "Asia/Taipei",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function actionLabel(action: string, t: (key: TextKey | ExtraKey) => string) {
+  const bare = action.replace(/^request\./, "");
+  const map: Record<string, ExtraKey> = {
+    created: "actionCreated",
+    submitted: "actionSubmitted",
+    confirmed: "actionConfirmed",
+    declined: "actionDeclined",
+    completed: "actionCompleted",
+    cancelled: "actionCancelled",
+  };
+  const key = map[bare];
+  return key ? t(key) : action;
+}
 
 type View =
   | "overview"
@@ -144,6 +171,8 @@ export default function HandoverApp() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [view, setView] = useState<View>("overview");
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const loadGeneration = useRef(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [week, setWeek] = useState(defaultSchoolMonday());
@@ -194,6 +223,8 @@ export default function HandoverApp() {
     nextClass = classId,
     nextTeacher = teacherId,
   ) {
+    const generation = loadGeneration.current + 1;
+    loadGeneration.current = generation;
     setLoading(true);
     setError("");
     try {
@@ -201,9 +232,11 @@ export default function HandoverApp() {
       if (nextClass) params.set("classId", nextClass);
       if (nextTeacher) params.set("teacherId", nextTeacher);
       const data = await api<Workspace>(`/api/workspace?${params.toString()}`);
+      if (generation !== loadGeneration.current) return;
       setWorkspace(data);
       setUser(data.user);
     } catch (caught) {
+      if (generation !== loadGeneration.current) return;
       if (caught instanceof ApiError && caught.status === 401) {
         setUser(null);
         setWorkspace(null);
@@ -216,7 +249,7 @@ export default function HandoverApp() {
           : t("networkError"),
       );
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }
 
@@ -232,7 +265,6 @@ export default function HandoverApp() {
   }, []);
 
   async function refresh() {
-    setMessage("");
     await load();
   }
 
@@ -242,12 +274,13 @@ export default function HandoverApp() {
         <p className="main">{t("loading")}</p>
       </main>
     );
-  if (!user || !workspace) {
+  if (!user) {
     return (
       <AuthScreen
         t={t}
         language={prefs.language}
         setLanguage={prefs.setLanguage}
+        notice={error}
         onUser={(next) => {
           setUser(next);
           setWeek(defaultSchoolMonday());
@@ -259,6 +292,20 @@ export default function HandoverApp() {
           void load(defaultSchoolMonday());
         }}
       />
+    );
+  }
+  if (!workspace) {
+    return (
+      <main className="handover-root">
+        <section className="main stack">
+          <p className="notice error" role="alert">
+            {error || t("loadFailed")}
+          </p>
+          <button className="btn" type="button" onClick={() => void load()}>
+            {t("retry")}
+          </button>
+        </section>
+      </main>
     );
   }
 
@@ -312,15 +359,34 @@ export default function HandoverApp() {
           </button>
           <button
             type="button"
+            disabled={loggingOut}
             onClick={async () => {
-              await api("/api/auth/logout", {});
-              setUser(null);
-              setWorkspace(null);
-              setEditing(false);
-              setSelected(null);
-              setFocus(null);
-              setSeedLesson("");
-              setView("overview");
+              setLoggingOut(true);
+              setError("");
+              try {
+                await api("/api/auth/logout", {});
+                setUser(null);
+                setWorkspace(null);
+                setEditing(false);
+                setSelected(null);
+                setFocus(null);
+                setSeedLesson("");
+                setView("overview");
+                setMessage("");
+              } catch (caught) {
+                if (caught instanceof ApiError && caught.status === 401) {
+                  setUser(null);
+                  setWorkspace(null);
+                  return;
+                }
+                setError(
+                  caught instanceof ApiError
+                    ? errorText(prefs.language, caught.code)
+                    : t("networkError"),
+                );
+              } finally {
+                setLoggingOut(false);
+              }
             }}
           >
             {t("logout")}
@@ -367,6 +433,7 @@ export default function HandoverApp() {
             </p>
           ) : null}
           {loading ? <p>{t("loadingData")}</p> : null}
+          <InstallGuide t={t} editing={editing} />
           {view === "overview" ? (
             <Overview
               t={t}
@@ -428,10 +495,16 @@ export default function HandoverApp() {
           {view === "notifications" ? (
             <Notifications
               t={t}
+              language={prefs.language}
               workspace={workspace}
               onOpen={(id) => void openRequest(id)}
               onReload={refresh}
               onMessage={setMessage}
+              onError={setError}
+              onUnauthorized={() => {
+                setUser(null);
+                setWorkspace(null);
+              }}
             />
           ) : null}
           {view === "profile" ? (
@@ -478,11 +551,13 @@ function AuthScreen({
   language,
   setLanguage,
   onUser,
+  notice,
 }: {
   t: (key: TextKey | ExtraKey) => string;
   language: Language;
   setLanguage: (value: Language) => void;
   onUser: (user: User) => void;
+  notice?: string;
 }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
@@ -649,6 +724,11 @@ function AuthScreen({
                   : t("resetPassword")}
             </h2>
             <p>{mode === "recover" ? t("recoveryIntro") : t("loginHint")}</p>
+            {notice ? (
+              <p className="notice error" role="alert">
+                {notice}
+              </p>
+            ) : null}
             {shownCode ? (
               <p className="notice" role="status">
                 <strong>
@@ -839,15 +919,27 @@ function Overview({
       (item.status === "Draft" || item.status === "Declined") &&
       item.originalTeacherId === user.id,
   );
-  const next =
-    user.role === "student"
-      ? workspace.requests.find((item) => item.status === "Confirmed")
-      : (incoming[0] ?? drafts[0]);
   const nextLesson = [...workspace.lessons]
     .filter((lesson) => lesson.date >= today)
     .sort((a, b) =>
       a.date === b.date ? a.period - b.period : a.date.localeCompare(b.date),
     )[0];
+  const lessonHandover = nextLesson
+    ? workspace.requests.find(
+        (item) =>
+          item.lessonId === nextLesson.id &&
+          (item.status === "Confirmed" || item.status === "Completed"),
+      )
+    : undefined;
+  const next =
+    user.role === "student" ? lessonHandover : (incoming[0] ?? drafts[0]);
+  const otherChanges =
+    user.role === "student"
+      ? workspace.requests.filter(
+          (item) =>
+            item.status === "Confirmed" && item.id !== lessonHandover?.id,
+        )
+      : [];
   return (
     <section className="stack">
       <div className="card notice">
@@ -880,15 +972,34 @@ function Overview({
               {t("noLessons")}. {t("noLessonsHint")}
             </p>
           )}
-          {next ? (
+          {lessonHandover ? (
             <p>
-              {next.originalTeacherName} → {next.recipientName} ·{" "}
-              {next.targetRoom}
+              {lessonHandover.targetDate} · {t("period")}{" "}
+              {lessonHandover.targetPeriod}
               <br />
-              {next.handover.studentReminder || "—"}
+              {lessonHandover.originalTeacherName} →{" "}
+              {lessonHandover.recipientName} · {lessonHandover.targetRoom}
+              <br />
+              {lessonHandover.handover.studentReminder || "—"}
             </p>
           ) : null}
         </article>
+      ) : null}
+      {otherChanges.length ? (
+        <section className="card stack">
+          <h2>{t("weeklyChanges")}</h2>
+          {otherChanges.map((item) => (
+            <button
+              className="btn ghost"
+              type="button"
+              key={item.id}
+              onClick={() => onOpen(item.id)}
+            >
+              {item.targetDate} · {t("period")} {item.targetPeriod} ·{" "}
+              {item.subject}
+            </button>
+          ))}
+        </section>
       ) : null}
       <div className="ledger">
         <article className="card">
@@ -907,6 +1018,13 @@ function Overview({
           <span>{t("ready")}</span>
           <strong>{workspace.stats.confirmed}</strong>
         </article>
+        {user.role === "admin" ? (
+          <article className="card">
+            <span>{t("weeklyChanges")}</span>
+            <strong>{workspace.stats.weekly}</strong>
+            <p>{workspace.week}</p>
+          </article>
+        ) : null}
       </div>
       {user.role === "teacher" && incoming.length ? (
         <section className="card stack">
@@ -977,7 +1095,11 @@ function Overview({
               key={risk.id}
               onClick={() => onOpen(risk.requestId)}
             >
-              {risk.message}
+              {risk.message === "unconfirmed"
+                ? t("riskUnconfirmed")
+                : risk.message === "returned"
+                  ? t("riskReturned")
+                  : risk.message}
             </button>
           ))}
         </section>
@@ -1438,6 +1560,7 @@ function Requests({
       ))}
       {current && !editing ? (
         <Detail
+          key={current.id}
           t={t}
           language={language}
           user={user}
@@ -1461,7 +1584,10 @@ function handoverGaps(value: Handover) {
   if (!value.teacherNotes?.trim()) fields.push("teacherNotes");
   if (
     !value.materials.some(
-      (item) => item.title.trim() && /^https?:\/\/\S+$/i.test(item.url.trim()),
+      (item) =>
+        item.title.trim() &&
+        (/^https?:\/\/\S+$/i.test(item.url.trim()) ||
+          (item.url.trim().startsWith("/") && !item.url.includes(".."))),
     )
   )
     fields.push("materials");
@@ -1560,6 +1686,7 @@ function Editor({
     recipientId,
   ].join("|");
   const [failedKey, setFailedKey] = useState("");
+  const [retryCheck, setRetryCheck] = useState(0);
   const report = checked?.key === scheduleKey ? checked.report : null;
   const checking = arrangementReady && !report && failedKey !== scheduleKey;
   useEffect(() => {
@@ -1581,12 +1708,26 @@ function Editor({
       })
         .then((next) => {
           if (checkGeneration.current !== generation) return;
+          setFailedKey("");
+          setError("");
           setChecked({ key, report: next });
         })
-        .catch(() => {
+        .catch((caught: unknown) => {
           if (checkGeneration.current !== generation) return;
           setFailedKey(key);
-          setError(translate(language, "networkError"));
+          if (caught instanceof ApiError && caught.status === 401) {
+            setError(errorText(language, caught.code));
+            return;
+          }
+          if (caught instanceof ApiError && caught.status === 403) {
+            setError(translate(language, "permissionError"));
+            return;
+          }
+          setError(
+            caught instanceof ApiError
+              ? errorText(language, caught.code)
+              : translate(language, "networkError"),
+          );
         });
     }, 300);
     return () => clearTimeout(timer);
@@ -1604,6 +1745,7 @@ function Editor({
     handover,
     user.id,
     language,
+    retryCheck,
   ]);
   async function save(submit: boolean) {
     setError("");
@@ -1646,21 +1788,41 @@ function Editor({
     setChecked(null);
   }
   function template() {
-    const subject = lesson?.subject || "Lesson";
+    const subject =
+      lesson?.subject || (language === "zh" ? "這一堂" : "Lesson");
+    const file = `${window.location.origin}/worksheets/class-practice.txt`;
     setHandover({
       ...handover,
-      progress: `${subject}: the class has finished the previous worked example.`,
-      plan: `Review the last ${subject} example, teach the next one, then ask students to finish the practice file.`,
+      progress:
+        language === "zh"
+          ? `${subject}：上一堂的例題已經做完。`
+          : `${subject}: the class has finished the previous worked example.`,
+      plan:
+        language === "zh"
+          ? `先複習${subject}上一題，再教下一題，最後請學生完成練習檔。`
+          : `Review the last ${subject} example, teach the next one, then ask students to finish the practice file.`,
       materials: [
         {
-          title: `${subject} practice`,
-          url: `${window.location.origin}/worksheets/class-practice.txt`,
+          title: language === "zh" ? `${subject}練習` : `${subject} practice`,
+          url: file,
         },
       ],
-      assessment: `Students finish the ${subject} practice before the next lesson.`,
-      equipment: "Board and one shared projector",
-      studentReminder: `Bring the ${subject} notebook and a pen.`,
-      teacherNotes: `Repeat the ${subject} example for anyone who missed the first pass.`,
+      assessment:
+        language === "zh"
+          ? `下一堂前完成${subject}練習。`
+          : `Students finish the ${subject} practice before the next lesson.`,
+      equipment:
+        language === "zh"
+          ? "白板與一台共用投影機"
+          : "Board and one shared projector",
+      studentReminder:
+        language === "zh"
+          ? `帶${subject}筆記本和筆。`
+          : `Bring the ${subject} notebook and a pen.`,
+      teacherNotes:
+        language === "zh"
+          ? `若有人沒跟上，再示範一次${subject}例題。`
+          : `Repeat the ${subject} example for anyone who missed the first pass.`,
     });
   }
   return (
@@ -1675,8 +1837,22 @@ function Editor({
       {error ? (
         <p className="notice error" role="alert">
           {error}
-          {missing.length ? ` ${missing.join(", ")}` : ""}
+          {missing.length
+            ? ` ${missing.map((field) => t(field as TextKey)).join(", ")}`
+            : ""}
         </p>
+      ) : null}
+      {failedKey === scheduleKey ? (
+        <button
+          className="btn secondary"
+          type="button"
+          onClick={() => {
+            setFailedKey("");
+            setRetryCheck((value) => value + 1);
+          }}
+        >
+          {t("retry")}
+        </button>
       ) : null}
       <label>
         {t("selectLesson")}
@@ -1937,25 +2113,37 @@ function Detail({
   const [comment, setComment] = useState("");
   const [supplement, setSupplement] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     document.getElementById("handover-detail")?.focus();
     if (user.role !== "student") return;
     if (request.status !== "Confirmed" && request.status !== "Completed")
       return;
-    void api(`/api/requests/${request.id}/view`, {});
-  }, [request.id, request.status, user.role]);
+    void api(`/api/requests/${request.id}/view`, {}).catch(
+      (caught: unknown) => {
+        if (caught instanceof ApiError && caught.status === 401) {
+          setError(errorText(language, caught.code));
+        }
+      },
+    );
+  }, [request.id, request.status, user.role, language]);
   async function act(path: string, body: unknown, method = "POST") {
+    if (busy) return;
+    setBusy(true);
     setError("");
     try {
       await api(path, body, method);
       onMessage(t("changesSaved"));
       await onReload();
     } catch (caught) {
+      onMessage("");
       setError(
         caught instanceof ApiError
           ? errorText(language, caught.code)
           : t("networkError"),
       );
+    } finally {
+      setBusy(false);
     }
   }
   const canEdit =
@@ -2077,7 +2265,8 @@ function Detail({
         <h3>{t("timeline")}</h3>
         {request.timeline.map((item) => (
           <p key={item.id}>
-            {item.at} · {item.actorName} · {item.action} {item.comment}
+            {localWhen(item.at, language)} · {item.actorName} ·{" "}
+            {actionLabel(item.action, t)} {item.comment}
           </p>
         ))}
       </section>
@@ -2099,6 +2288,7 @@ function Detail({
             <button
               className="btn"
               type="button"
+              disabled={busy}
               onClick={() =>
                 void act(`/api/requests/${request.id}/respond`, {
                   decision: "accept",
@@ -2111,6 +2301,7 @@ function Detail({
             <button
               className="btn warn"
               type="button"
+              disabled={busy}
               onClick={() =>
                 void act(`/api/requests/${request.id}/respond`, {
                   decision: "decline",
@@ -2140,6 +2331,7 @@ function Detail({
           <button
             className="btn ghost"
             type="button"
+            disabled={busy}
             onClick={() =>
               void act(`/api/requests/${request.id}/supplements`, {
                 text: supplement,
@@ -2156,6 +2348,7 @@ function Detail({
         <button
           className="btn"
           type="button"
+          disabled={busy}
           onClick={() =>
             void act(`/api/requests/${request.id}/status`, {
               status: "Completed",
@@ -2171,11 +2364,12 @@ function Detail({
         <button
           className="btn warn"
           type="button"
+          disabled={busy}
           onClick={() => {
             if (window.confirm(t("cancelConfirm")))
               void act(`/api/requests/${request.id}/status`, {
                 status: "Cancelled",
-                comment: "Cancelled",
+                comment: t("cancelRequest"),
               });
           }}
         >
@@ -2195,17 +2389,24 @@ function Detail({
 
 function Notifications({
   t,
+  language,
   workspace,
   onOpen,
   onReload,
   onMessage,
+  onError,
+  onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
+  language: Language;
   workspace: Workspace;
   onOpen: (id: string) => void;
   onReload: () => Promise<void>;
   onMessage: (value: string) => void;
+  onError: (value: string) => void;
+  onUnauthorized: () => void;
 }) {
+  const [busy, setBusy] = useState(false);
   if (!workspace.notifications.length)
     return (
       <p className="card">
@@ -2217,10 +2418,28 @@ function Notifications({
       <button
         className="btn ghost"
         type="button"
+        disabled={busy}
         onClick={async () => {
-          await api("/api/notifications/read", {});
-          onMessage(t("read"));
-          await onReload();
+          setBusy(true);
+          onError("");
+          try {
+            await api("/api/notifications/read", {});
+            onMessage(t("read"));
+            await onReload();
+          } catch (caught) {
+            onMessage("");
+            if (caught instanceof ApiError && caught.status === 401) {
+              onUnauthorized();
+              return;
+            }
+            onError(
+              caught instanceof ApiError
+                ? errorText(language, caught.code)
+                : t("networkError"),
+            );
+          } finally {
+            setBusy(false);
+          }
         }}
       >
         {t("markAllRead")}
@@ -2230,18 +2449,44 @@ function Notifications({
           className="lesson"
           type="button"
           key={item.id}
+          aria-pressed={item.read}
           onClick={() => {
+            if (busy) return;
+            setBusy(true);
             void api("/api/notifications/read", { id: item.id })
-              .catch(() => onMessage(t("networkError")))
+              .then(() => onReload())
+              .catch((caught: unknown) => {
+                onMessage("");
+                if (caught instanceof ApiError && caught.status === 401) {
+                  onUnauthorized();
+                  return;
+                }
+                onError(
+                  caught instanceof ApiError
+                    ? errorText(language, caught.code)
+                    : t("networkError"),
+                );
+              })
               .finally(() => {
+                setBusy(false);
                 onOpen(item.requestId);
-                void onReload();
               });
           }}
         >
-          <strong>{item.title}</strong>
+          <strong>
+            {item.event === "pending"
+              ? t("eventPending")
+              : item.event === "declined"
+                ? t("eventDeclined")
+                : item.event === "accepted"
+                  ? t("eventAccepted")
+                  : item.event === "class_change"
+                    ? t("eventClassChange")
+                    : item.title}
+          </strong>
           <br />
-          {item.createdAt} {item.read ? `· ${t("read")}` : ""}
+          {localWhen(item.createdAt, language)} ·{" "}
+          {item.read ? t("read") : t("unread")}
         </button>
       ))}
     </section>
@@ -2267,9 +2512,16 @@ function Profile({
   const [classId, setClassId] = useState(user.classId ?? "");
   const [subjects, setSubjects] = useState(user.subjects.join(", "));
   const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   return (
     <section className="card stack">
       <h2>{t("account")}</h2>
+      {error ? (
+        <p className="notice error" role="alert">
+          {error}
+        </p>
+      ) : null}
       <p>
         {user.email} · {t(user.role)}
       </p>
@@ -2304,24 +2556,38 @@ function Profile({
       <button
         className="btn"
         type="button"
+        disabled={busy}
         onClick={async () => {
-          await api(
-            "/api/profile",
-            {
-              name,
-              classId: user.role === "student" ? classId : undefined,
-              subjects:
-                user.role === "teacher"
-                  ? subjects
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean)
-                  : undefined,
-            },
-            "PATCH",
-          );
-          onMessage(t("saved"));
-          await onReload();
+          setBusy(true);
+          setError("");
+          try {
+            await api(
+              "/api/profile",
+              {
+                name,
+                classId: user.role === "student" ? classId : undefined,
+                subjects:
+                  user.role === "teacher"
+                    ? subjects
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean)
+                    : undefined,
+              },
+              "PATCH",
+            );
+            onMessage(t("saved"));
+            await onReload();
+          } catch (caught) {
+            onMessage("");
+            setError(
+              caught instanceof ApiError
+                ? errorText("en", caught.code)
+                : t("networkError"),
+            );
+          } finally {
+            setBusy(false);
+          }
         }}
       >
         {t("saveProfile")}
@@ -2385,12 +2651,25 @@ function Profile({
           <button
             className="btn warn"
             type="button"
-            disabled={confirm !== "RESET DEMO"}
+            disabled={busy || confirm !== "RESET DEMO"}
             onClick={async () => {
-              await api("/api/admin/reset", { confirm: "RESET DEMO" });
-              onMessage(t("resetSuccess"));
-              setConfirm("");
-              await onReload();
+              setBusy(true);
+              setError("");
+              try {
+                await api("/api/admin/reset", { confirm: "RESET DEMO" });
+                onMessage(t("resetSuccess"));
+                setConfirm("");
+                await onReload();
+              } catch (caught) {
+                onMessage("");
+                setError(
+                  caught instanceof ApiError
+                    ? errorText("en", caught.code)
+                    : t("networkError"),
+                );
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             {t("resetConfirm")}
@@ -2410,11 +2689,23 @@ function Users({
 }) {
   const [users, setUsers] = useState<User[]>([]);
   const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    void api<{ users: User[] }>("/api/admin/users").then((data) =>
-      setUsers(data.users),
-    );
-  }, []);
+    let live = true;
+    void api<{ users: User[] }>("/api/admin/users")
+      .then((data) => {
+        if (live) setUsers(data.users);
+      })
+      .catch(() => {
+        if (live) setError(t("networkError"));
+      });
+    return () => {
+      live = false;
+    };
+    // `t` is recreated each render; retry is driven by `attempt`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt]);
   const shown = users
     .filter((item) =>
       `${item.name} ${item.email} ${item.role}`
@@ -2425,6 +2716,21 @@ function Users({
   return (
     <section className="stack">
       <h2>{t("schoolPeople")}</h2>
+      {error ? (
+        <p className="notice error" role="alert">
+          {error}{" "}
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => {
+              setError("");
+              setAttempt((value) => value + 1);
+            }}
+          >
+            {t("retry")}
+          </button>
+        </p>
+      ) : null}
       <label>
         {t("search")}
         <input
@@ -2457,16 +2763,26 @@ function Users({
                     className="btn ghost"
                     type="button"
                     onClick={async () => {
-                      await api(
-                        `/api/admin/users/${item.id}`,
-                        { active: !item.active },
-                        "PATCH",
-                      );
-                      onMessage(t("changesSaved"));
-                      const data = await api<{ users: User[] }>(
-                        "/api/admin/users",
-                      );
-                      setUsers(data.users);
+                      setError("");
+                      try {
+                        await api(
+                          `/api/admin/users/${item.id}`,
+                          { active: !item.active },
+                          "PATCH",
+                        );
+                        onMessage(t("changesSaved"));
+                        const data = await api<{ users: User[] }>(
+                          "/api/admin/users",
+                        );
+                        setUsers(data.users);
+                      } catch (caught) {
+                        onMessage("");
+                        setError(
+                          caught instanceof ApiError
+                            ? caught.code
+                            : t("networkError"),
+                        );
+                      }
                     }}
                   >
                     {item.active ? t("disable") : t("enable")}
@@ -2492,20 +2808,48 @@ function Audit({ t }: { t: (key: TextKey | ExtraKey) => string }) {
       detail: string;
     }>
   >([]);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    void api<{ events: typeof events }>("/api/admin/audit").then((data) =>
-      setEvents(data.events),
-    );
-  }, []);
+    let live = true;
+    void api<{ events: typeof events }>("/api/admin/audit")
+      .then((data) => {
+        if (live) setEvents(data.events);
+      })
+      .catch(() => {
+        if (live) setError(t("networkError"));
+      });
+    return () => {
+      live = false;
+    };
+    // `t` is recreated each render; retry is driven by `attempt`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt]);
   return (
     <section className="card stack">
       <h2>{t("audit")}</h2>
-      {events.length === 0 ? (
+      {error ? (
+        <p className="notice error" role="alert">
+          {error}{" "}
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => {
+              setError("");
+              setAttempt((value) => value + 1);
+            }}
+          >
+            {t("retry")}
+          </button>
+        </p>
+      ) : null}
+      {!error && events.length === 0 ? (
         <p>{t("noActivity")}</p>
       ) : (
         events.map((event) => (
           <p key={event.id}>
-            {event.at} · {event.actorName} · {event.action}
+            {localWhen(event.at, "en")} · {event.actorName} ·{" "}
+            {actionLabel(event.action, t)}
             <br />
             {event.detail}
           </p>
@@ -2529,6 +2873,7 @@ function Impact({
     coverageRate: number;
   } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
     void api<NonNullable<typeof data>>(`/api/admin/impact?week=${week}`)
@@ -2541,11 +2886,21 @@ function Impact({
     return () => {
       live = false;
     };
-  }, [week]);
+  }, [week, attempt]);
   if (failed)
     return (
       <p className="notice error" role="alert">
-        {t("networkError")}
+        {t("networkError")}{" "}
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          {t("retry")}
+        </button>
       </p>
     );
   if (!data) return <p>{t("loadingData")}</p>;

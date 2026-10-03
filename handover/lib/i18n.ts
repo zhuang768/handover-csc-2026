@@ -543,6 +543,35 @@ const extraEn = {
   checkingSchedule: "Checking the timetable…",
   sendBlocked: "Complete the handover and clear any clash before sending.",
   createFromLesson: "Create a handover for this lesson",
+  actionCreated: "Created",
+  actionSubmitted: "Submitted",
+  actionConfirmed: "Confirmed",
+  actionDeclined: "Declined",
+  actionCompleted: "Completed",
+  actionCancelled: "Cancelled",
+  riskUnconfirmed: "Still waiting for confirmation",
+  riskReturned: "Returned for changes",
+  unread: "Unread",
+  loadFailed: "The workspace did not load.",
+  permissionError: "You do not have permission for that action.",
+  eventPending: "New handover to confirm",
+  eventDeclined: "Handover returned",
+  eventAccepted: "Handover accepted",
+  eventClassChange: "Your class timetable changed",
+  installTitle: "Add to Home Screen",
+  installIntro:
+    "Use the school web address, then add Handover to your home screen. Timetable changes still need a connection.",
+  installIos:
+    "On iPhone or iPad, open this page in Safari. Tap Share, then Add to Home Screen, then open the Handover icon. Older and newer iOS wording can differ slightly.",
+  installAndroid:
+    "In Chrome, use the browser menu and choose Install app or Add to Home screen.",
+  installButton: "Install Handover",
+  installStandalone: "Handover is open from your home screen.",
+  offlineBanner:
+    "You are offline. Changes are not saved until the connection returns.",
+  updateReady: "A newer version is ready.",
+  updateNow: "Reload the new version",
+  updateWhileEditing: "Close the open draft before reloading.",
 } as const;
 const extraZh: Record<keyof typeof extraEn, string> = {
   medical: "就醫",
@@ -559,6 +588,34 @@ const extraZh: Record<keyof typeof extraEn, string> = {
   checkingSchedule: "正在檢查衝堂…",
   sendBlocked: "請先補齊交接內容，並確認沒有衝堂。",
   createFromLesson: "為這堂課建立交接",
+  actionCreated: "已建立",
+  actionSubmitted: "已送出",
+  actionConfirmed: "已確認",
+  actionDeclined: "已退回",
+  actionCompleted: "已完成",
+  actionCancelled: "已取消",
+  riskUnconfirmed: "仍在等待確認",
+  riskReturned: "已退回修改",
+  unread: "未讀",
+  loadFailed: "工作台沒有載入。",
+  permissionError: "你沒有這個操作的權限。",
+  eventPending: "有新的交接待確認",
+  eventDeclined: "交接已退回",
+  eventAccepted: "交接已接受",
+  eventClassChange: "你的班級課表已更新",
+  installTitle: "加入主畫面",
+  installIntro:
+    "先用學校網址開啟，再把 Handover 加到主畫面。調課和交接仍然需要網路。",
+  installIos:
+    "iPhone 或 iPad 請用 Safari 開啟此頁。點分享，再點加入主畫面，然後從主畫面的 Handover 圖示開啟。不同 iOS 版本的用詞可能略有不同。",
+  installAndroid:
+    "在 Chrome 使用瀏覽器選單，選擇安裝應用程式或加到主畫面。",
+  installButton: "安裝 Handover",
+  installStandalone: "Handover 已從主畫面開啟。",
+  offlineBanner: "目前沒有網路。連線恢復前，變更不會被儲存。",
+  updateReady: "有新版本可以使用。",
+  updateNow: "重新載入新版本",
+  updateWhileEditing: "請先關閉未完成的草稿，再重新載入。",
 };
 export type ExtraKey = keyof typeof extraEn;
 export function translate(language: Language, key: TextKey | ExtraKey): string {
