@@ -1,7 +1,8 @@
-const VERSION = "handover-public-r04-1";
+const VERSION = "handover-public-r05-canonical-1";
 const PREFIX = "handover-public-";
+const OFFLINE_PATH = "/offline";
 const PRECACHE = [
-  "/offline.html",
+  OFFLINE_PATH,
   "/favicon.svg",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -51,7 +52,7 @@ async function cleanPublicResponse(response, path) {
     headers: {
       "content-type":
         response.headers.get("content-type") ||
-        (path.endsWith(".html") ? "text/html; charset=utf-8" : "text/plain"),
+        (path === OFFLINE_PATH ? "text/html; charset=utf-8" : "text/plain"),
       "cache-control": "no-cache",
     },
   });
@@ -66,7 +67,7 @@ self.addEventListener("install", (event) => {
           const response = await fetch(path);
           const clean = await cleanPublicResponse(response, path);
           if (clean) await cache.put(path, clean);
-          else if (path === "/offline.html")
+          else if (path === OFFLINE_PATH)
             await cache.put(path, embeddedOffline());
           else throw new Error(`Could not cache ${path}`);
         }),
@@ -104,7 +105,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(VERSION);
-        const cached = await cache.match("/offline.html");
+        const cached = await cache.match(OFFLINE_PATH);
         if (!cached) {
           return new Response("Offline", {
             status: 503,
@@ -112,7 +113,7 @@ self.addEventListener("fetch", (event) => {
           });
         }
         return (
-          (await cleanPublicResponse(cached, "/offline.html")) ??
+          (await cleanPublicResponse(cached, OFFLINE_PATH)) ??
           new Response("Offline", {
             status: 503,
             headers: { "content-type": "text/plain; charset=utf-8" },
