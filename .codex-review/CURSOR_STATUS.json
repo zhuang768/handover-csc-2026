@@ -1,13 +1,87 @@
 {
-  "status": "working",
+  "status": "ready_for_review",
   "round": 1,
-  "updatedAt": "2026-10-03T15:30:00+08:00",
+  "updatedAt": "2026-10-03T23:45:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": null,
-  "completedRequirements": [],
-  "checks": [],
+  "gitHead": "9f2d0389bfc04deb73959b97a165cabc00989125",
+  "completedRequirements": [
+    "AUTH-01",
+    "AUTH-02",
+    "AUTH-03",
+    "AUTH-04",
+    "AUTH-05",
+    "ACL-01",
+    "ACL-02",
+    "ACL-03",
+    "ACL-04",
+    "SEC-01",
+    "SEC-02",
+    "DATA-01",
+    "DATA-02",
+    "SCHED-01",
+    "SCHED-03",
+    "REQ-01",
+    "REQ-02",
+    "REQ-03",
+    "HAND-01",
+    "HAND-02",
+    "HAND-03",
+    "STATE-01",
+    "STATE-02",
+    "STATE-03",
+    "STATE-04",
+    "STUD-01",
+    "STUD-02",
+    "NOTIF-01",
+    "NOTIF-02",
+    "NOTIF-03",
+    "ADMIN-01",
+    "ADMIN-02",
+    "ADMIN-03",
+    "UX-01",
+    "UX-05",
+    "CHECK-01"
+  ],
+  "checks": [
+    {
+      "command": "node --experimental-strip-types --test tests/api.test.ts",
+      "exitCode": 0,
+      "summary": "24 passed, 0 failed. Includes handover gate, collision, authorization, recovery, demo reset, and concurrent slot reservation."
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "summary": "eslint . passed"
+    },
+    {
+      "command": "npm run format:check",
+      "exitCode": 0,
+      "summary": "prettier check passed for server, shared, app, and tests"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "summary": "tsc --noEmit passed"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "summary": "vinext build completed with / and /api/:path*"
+    },
+    {
+      "command": "curl POST http://127.0.0.1:5173/api/auth/demo",
+      "exitCode": 0,
+      "summary": "Local dev server returned 200 and an HttpOnly session for the student demo. Browser then showed Mina 7A with 20 lessons this week and an empty Saturday."
+    }
+  ],
   "publicUrl": null,
   "githubUrl": null,
-  "knownLimitations": [],
+  "knownLimitations": [
+    "No email provider: password reset uses a one-time recovery code stored only as a PBKDF2 hash.",
+    "Day-before reminders are created when a workspace loads, not by a background push.",
+    "Viewport matrix 390/768/1440 and Playwright were not run.",
+    "No public deployment and no GitHub push in this round.",
+    "Subject templates are deterministic text, not a model call."
+  ],
   "blockers": []
 }
