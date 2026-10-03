@@ -51,9 +51,10 @@ class Client {
     if (this.cookie) headers.set('Cookie', this.cookie);
     if (body !== undefined) headers.set('Content-Type', 'application/json');
     const response = await fetch(origin + path, {
-      method, headers, redirect: 'manual',
+      method, headers, redirect: 'manual', signal: AbortSignal.timeout(30000),
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+    if (flags.includes('--progress')) console.log(JSON.stringify({step,method,path,status:response.status}));
     if (response.status !== expected) httpFailure = `${method} ${path}: expected ${expected}, received ${response.status}`;
     assert.equal(response.status, expected, `${step}: ${method} ${path} status`);
     assert.match(response.headers.get('cache-control') ?? '', /no-store/i, `${step}: private HTTP cache`);

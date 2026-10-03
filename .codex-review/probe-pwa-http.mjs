@@ -90,9 +90,14 @@ try {
   assert.match(sw.record.type ?? "", /(?:text|application)\/javascript/i);
   assert.equal(sw.record.redirects.length, 0, "SW must load directly");
   revalidates(sw.record);
-  const offline = await get("/offline.html");
+  const offline = await get("/offline.htm");
   assert.equal(offline.record.status, 200);
+  assert.equal(offline.record.initialStatus, 200, "Canonical offline page must return 200 directly");
+  assert.equal(offline.record.redirects.length, 0, "Offline page must not redirect");
+  assert.equal(offline.record.finalPath, "/offline.htm");
   assert.match(offline.record.type ?? "", /text\/html/i);
+  assert.match(offline.bytes.toString("utf8"), /交接需要網路/);
+  assert.match(offline.bytes.toString("utf8"), /Nothing was\s+submitted/);
   offline.record.canonicalPath = offline.record.finalPath;
   for (const path of ["/api/auth/me", "/api/workspace"]) {
     const api = await get(path);

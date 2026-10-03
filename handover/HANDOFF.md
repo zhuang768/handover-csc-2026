@@ -1,8 +1,8 @@
 # Handoff
 
-Branch `handover`. Round 5's integrated local checks passed. Round 3 did not pass independent review. Do not treat an older 82-pass run as the current suite.
+Round 5's integrated local checks and three pinned historical probes passed. The public Site and GitHub repository are available. Version 3 passed hosted offline verification and a real version 1 → 3 browser update. Round 3 did not pass independent review. Do not treat an older 82-pass run as the current suite.
 
-Codex completed the Round 5 repairs after Cursor stopped at its usage limit before making Round 5 product changes. The final product commit and the three pinned historical probes are still pending; public HTTPS, GitHub CI, and physical-phone installation have not been verified.
+Codex completed the Round 5 repairs after Cursor stopped at its usage limit before making Round 5 product changes. The [live app](https://handover-campus-2026.ziz81503.chatgpt.site), [public repository](https://github.com/zhuang768/handover-csc-2026), and [successful GitHub CI run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969) are recorded here. Physical-phone installation and final Devpost submission remain unverified.
 
 ## Round 5 handoff
 
@@ -10,7 +10,17 @@ Codex completed the Round 5 repairs after Cursor stopped at its usage limit befo
 - Legacy `seed_revision=2` repair fills missing data and completion markers in one batch. Existing requests and arrangements stay; a missing sample for a changed lesson is inactive with an accurate current snapshot. New sample side effects require its insertion token. Only exact known demo material stubs receive the local worksheet URL.
 - Root's final local checks: 33 product tests, format, lint, types, and build exited 0; the independent suite passed 85 with 0 skipped; dev E2E passed 9/9 (15.6 s), built E2E passed 6/6 (5.6 s), with offline direct 200 and no Location.
 - The notification/profile locator failures were corrected and both full E2E suites were rerun successfully. Four local built-Worker sessions passed conflict rejection, the request return/resubmit/confirm/cancel lifecycle, student privacy and todo persistence, timetable restoration, and logout revocation. See `TEST_REPORT.md` for the reviewer fixture corrections and exact scope.
-- Root will pin the product before running the three true historical probes, then deliver GitHub and the existing Site. No final Devpost submit or participant terms/eligibility action is included.
+- The three true R02 historical probes passed against a fixed export: a complete legacy school and two real interrupted-seed schools. The stored wrapper's DDL comparison was corrected only to ignore exact Drizzle statement-breakpoint comment lines; all remaining SQL bytes and business assertions were retained.
+- Four demo sessions passed the same lifecycle, privacy, todo persistence, timetable restoration, and logout checks on hosted HTTPS before public access was enabled. Secure session cookies and private-response `no-store` were checked. Hosted ordinary registration and demo reset were not exercised.
+- After public access was enabled, anonymous root access returned 200, anonymous API access returned 401 with `no-store`, and the manifest, four PNG icons, and service-worker MIME were checked. The first hosted HTML redirect prevented caching the designed offline HTML; its embedded generic fallback remained. That designed-page issue is fixed and verified in version 3 below. No final Devpost submit or participant terms/eligibility action is included.
+
+## Round 6 canonical offline-page repair
+
+The first extensionless `/offline` attempt passed 6/6 local built cases in 7.4 seconds but failed the production MIME check: the host served `application/octet-stream`. Those local results did not establish the hosted result. The final asset is `/offline.htm`, with a bumped public-cache version. Final local product tests passed 34/34; format, lint, types, and build each exited 0; the direct built Playwright run passed 6/6 in 5.2 seconds. Pinned service-worker behavior checks passed 28/28 and detected all six unsafe fixtures.
+
+On public HTTPS version 3, `/offline.htm` passed strict HTTP checks: 200, no `Location`, `text/html`, and the designed page with the platform footer. The same authored offline browser test ran through the opt-in hosted configuration and passed 1/1 in 17.8 seconds. It verified the real controller, the canonical offline-page cache entry, no old paths or API/private entries, a bilingual offline reload, and an offline profile error with no successful-save message or persistence after reconnecting. It did not reset data or successfully write a profile. See `TEST_REPORT.md` for the exact command.
+
+The root also exercised a real hosted version 1 → 3 waiting-worker update in the native browser. An unsaved Mina 7A name change showed a warning without a reload button. Restoring the original name exposed the button; clicking it performed a real reload, preserved the Mina 7A student session and Traditional Chinese, and dismissed the banner. This was not an injected update seam. Physical-phone installation remains unverified. The linked successful CI run is for the earlier release; current workflow status is available in [GitHub Actions](https://github.com/zhuang768/handover-csc-2026/actions).
 
 ## Round 4 changes (historical)
 

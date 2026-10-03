@@ -1,3 +1,7 @@
+# 最新狀態：R06 正式 PWA 通過，GitHub 最終交付進行中
+
+GitHub main 204132b 已上傳且 CI 成功；正式 HTTPS 四角色流程與公開學生登入通過。離線資源先遇到 .html 轉址，再遇到平台忽略 _headers，兩次失敗保留於 R06_RELEASE_RESULTS.md。最終改用 /offline.htm；本機 34 單元／6 built／28 SW 安全及正式 HTTPS 真斷網 1/1 均通過。正式瀏覽器實際 v1→v3 更新已證明草稿保護與登入保留。只剩最終文件同步、focused PR／CI 與相同 app tree 的最後發布；Codex 擁有本輪，勿重送 Cursor。實體手機安裝與 Devpost 本人事項仍待本人處理。
+
 # 目前狀態：R05 本機驗收通過，外部交付進行中
 
 2026-10-04 Asia/Taipei。產品固定 commit `9538135128b95cf2d14db9f154d7aac53ba86e46`，app tree `f611d50eaaa655e955d8ac113f7b55bd41cae6f3`。Codex 接手後完成33產品、85獨立、9 dev、6 built、3真歷史升級測試，格式／lint／型別／build均通過。真正4session流程也通過。詳見R05_INTEGRATION_RESULTS.md。

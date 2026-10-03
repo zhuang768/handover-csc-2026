@@ -172,7 +172,7 @@ try {
   stage = "public_asset_bytes";
   const assets = [
     "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
-    "icons/icon-maskable-512.png", "icons/apple-touch-icon.png", "sw.js", "offline.html", "favicon.svg",
+    "icons/icon-maskable-512.png", "icons/apple-touch-icon.png", "sw.js", "offline.htm", "favicon.svg",
   ];
   const checks = [];
   for (const asset of assets) {

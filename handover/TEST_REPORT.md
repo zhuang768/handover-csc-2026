@@ -42,14 +42,53 @@ The Codex root ran the final integrated local checks after the source repairs:
 - `npm test` — exit 0, 33 passed.
 - `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm run build` — each exit 0.
 - `npm run test:e2e` — exit 0, 9 passed, 15.6 seconds.
-- `npm run test:e2e:built` — exit 0, 6 passed, 5.6 seconds. The built worker served `/offline.html` directly with status 200 and no `Location`.
+- After the successful `npm run build`, the installed Playwright CLI ran `playwright test -c playwright.built.config.ts` directly against that build — exit 0, 6 passed, 5.6 seconds. The local built worker served `/offline.html` directly with status 200 and no `Location`. This local run did not invoke the combined `npm run test:e2e:built` script again.
 - From the repo root, `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts` — exit 0, 85 passed, 0 skipped.
 
 Earlier integrated E2E attempts had one dev notification locator failure and built notification/profile locator failures. The selectors were corrected; focused reruns passed, then both complete suites above passed. The final result is the complete rerun, not only those focused checks.
 
 The root also used four independent demo sessions against a local built Worker. The preflight passed: an occupied target returned 409; Draft → Pending → Declined → corrected Pending → Confirmed → Cancelled completed; student payloads omitted private teacher fields; a student todo persisted; cancellation restored the timetable; and the old cookie returned 401 after logout. The review fixture initially used a move with a different recipient (422), and expected a student Draft response of 403 where the API intentionally returned opaque 404. The fixture was aligned with the existing API contract; the product was not changed to satisfy those incorrect expectations. Failed fixture drafts were cancelled, without resetting school data.
 
-The three true historical R02 probes remain pending until the final product commit is pinned. The product's partial-school and edited-arrangement regressions are not a substitute for those probes. No public HTTPS deployment, GitHub CI run, or physical iPhone/Android installation is claimed here. Earlier rounds below retain their own revision and scope.
+The root subsequently ran all three true historical R02 probes against a pinned product export: exit 0, 3 passed, 0 failed, 0 skipped. The complete R02 school retained ordinary accounts, sessions, edited rows, and its established record counts. Two genuine interrupted R02 seed attempts, failing on the first and second lesson insert respectively, upgraded to complete schools while retaining ordinary credentials and sessions. Known demo worksheet stubs were repaired without replacing an ordinary external URL. The product's partial-school regressions were not used as a substitute for these historical probes.
+
+The saved probe wrapper initially stopped before its business assertions because it compared raw SQL bytes and treated Drizzle's `--> statement-breakpoint` comments as a DDL change. Its comparison now removes only those exact marker lines from both versions and still compares every remaining SQL byte. Product migrations and the three probes' business assertions were not weakened. Earlier rounds below retain their own revision and scope; a later passing run does not rewrite an earlier failure.
+
+## Published deployment and GitHub CI, 2026-10-04
+
+- Live HTTPS app: [handover-campus-2026.ziz81503.chatgpt.site](https://handover-campus-2026.ziz81503.chatgpt.site), with public access enabled.
+- Public source: [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026).
+- GitHub CI: [successful run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969). The workflow uses Node 22 and runs `npm ci`, format, lint, types, product tests, dev E2E, and the combined `npm run test:e2e:built` script. That combined CI command builds before running the built Playwright configuration.
+
+Before public access was enabled, the root exercised four demo sessions on the deployed HTTPS app: occupied conflict 409; Draft → Pending → Declined → revised Pending → Confirmed → Cancelled; student payload privacy and todo persistence; restored timetable after cancellation; and old-cookie 401 after logout. Cookies were Secure and HttpOnly, and private responses used `Cache-Control: no-store`. This hosted check did not register an ordinary account or reset demonstration data.
+
+After public access was enabled, anonymous root access returned 200 and anonymous API access returned 401 with `no-store`. The manifest, four PNG icons, and service-worker MIME checks passed. The first production asset handler redirected the HTML asset, unlike the local built worker. Rejecting that redirected response prevented caching the designed offline HTML; the service worker still installed its embedded generic fallback. Resource accessibility alone did not prove that the designed offline page was cached. Version 3's successful canonical-resource and real offline-browser checks are recorded below.
+
+Physical iPhone/Android installation and standalone launch have not been tested. Deployment/source identifiers are kept in the root release record rather than inserting a self-referential app commit into these files.
+
+## Round 6 canonical offline-page repair, 2026-10-04
+
+The first repair used an extensionless `/offline` resource and explicit HTML headers. The root ran these local checks:
+
+- `npm test` — exit 0, 34 passed.
+- `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm run build` — each exit 0.
+- After that build, `playwright test -c playwright.built.config.ts` — exit 0, 6 passed, 7.4 seconds. The canonical `/offline` returned 200 with no `Location` and `text/html`. A controlled offline reload showed the designed public page; an offline save was not reported as success or resent on reconnect. All five existing pending-write cases passed.
+- Service-worker behavior probe — 28/28 passed; all six unsafe fixtures were detected.
+
+That first attempt failed the strict production resource check: `/offline` was served as `application/octet-stream`, despite passing the local built cases. The extensionless attempt is not the final resource. The final repair uses `/offline.htm`; the root reran `npm test` (34 passed), format, lint, types, and build (each exit 0), then ran the built Playwright configuration directly (6/6 passed, 5.2 seconds). The pinned service-worker VM checks passed 28/28 and detected all six unsafe fixtures. The successful CI linked above records the earlier released version; it is not a CI result for this final repair. Current runs are listed in [GitHub Actions](https://github.com/zhuang768/handover-csc-2026/actions). The earlier Round 5 and historical-probe evidence retains its recorded scope.
+
+### Public HTTPS version 3
+
+The strict HTTP probe passed for `/offline.htm`: status 200, no `Location`, `Content-Type: text/html`, and a body containing the designed offline page plus the platform footer.
+
+From `handover/`, the root ran the same authored `built-offline.spec` against the actual public HTTPS origin through the opt-in hosted configuration:
+
+```bash
+HANDOVER_TEST_ORIGIN=https://handover-campus-2026.ziz81503.chatgpt.site node ./node_modules/@playwright/test/cli.js test -c playwright.hosted.config.ts
+```
+
+PASS: 1/1, 17.8 seconds. This verified a real service-worker controller, `/offline.htm` as the canonical offline-page cache entry, no old fallback paths or API/private entries, and a real `setOffline` reload showing the bilingual public page. An offline profile save showed an error, did not show Saved, and did not persist after reconnecting. No demo reset or successful profile write was performed. This is a hosted Chromium check, not a physical-phone install.
+
+The root additionally used the native browser for a real hosted version 1 → 3 waiting-worker update. An unsaved Mina 7A name change showed only a warning and no reload button. Restoring the original name made the button appear; clicking it caused an actual reload, retained the Mina 7A student session and Traditional Chinese, and removed the update banner. This result used real versions and a real browser controller, not an injected UI seam.
 
 ## Round 4, 2026-10-04
 
@@ -111,4 +150,4 @@ Not claimed: a full keyboard tour of every field, reduced-motion computed style,
 
 These three bullets were the Round 1 limit. Round 4 measured 390, 768, and 1440 after login and ran Playwright, including a built-worker offline reload. They are not the current result.
 
-Still not verified: a physical iPhone or Android Add to Home Screen, a public HTTPS deployment, the new GitHub CI run, and the three historical probes against the final pinned product. The root's real local two-version profile-edit update check is recorded under Round 4; Round 5's integrated suites add dirty-edit and pending-write protection checks.
+Still not verified: physical iPhone/Android Add to Home Screen and standalone launch. Hosted ordinary registration and demo reset were not exercised in the four-session release walkthrough. Public HTTPS workflow, version 3's hosted offline reload and real version update, GitHub CI for the earlier release, and the three pinned historical probes have the evidence recorded above. The latest repair's CI status must be read from its actual workflow run; final Devpost submission is a separate participant action.

@@ -1,6 +1,6 @@
 # Handover — Devpost submission copy
 
-狀態：**提交草稿，尚未由此文件證明驗收或公開部署完成。** 後續需依 TEST_REPORT.md 與實際版本更新。`[CONFIRM]` 欄位必須由本人補齊；尚未通過的功能應刪除，不要直接把整份草稿當作已驗證主張貼上。
+狀態：**提交草稿；正式網站、公開 GitHub 與先前成功 CI 連結已提供，尚未代為送出 Devpost。** 已完成的本機、歷史升級、正式 HTTPS、v3 真離線與真版本更新驗證見 [TEST_REPORT.md](../TEST_REPORT.md)。真機安裝仍待驗證；最新修補的 CI 須依實際 workflow 結果確認。`[CONFIRM]` 欄位必須由本人補齊，並保留驗證範圍與限制。
 
 ## Project name
 
@@ -39,7 +39,7 @@ Handover gives each role a clear next action:
 
 The workflow is Draft → Pending → Confirmed or Declined → Completed or Cancelled, with revision after a decline. Conflict checks prevent incompatible changes. The interface supports English and Traditional Chinese, with responsive layouts for classroom use on phones.
 
-**Verification gate:** the paragraph above describes the intended release scope. Before publishing, retain each claim only when the current deployment and TEST_REPORT.md demonstrate it. Optional features must be listed separately if verified; this draft does not claim runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscriptions.
+The core request lifecycle, conflict rejection, and student privacy were checked through four demo sessions on the deployed HTTPS app. The public version 3 also passed a real controlled offline reload and an offline-save failure check, and a native browser completed a real version 1 → 3 update while preserving the student session and language. Responsive layouts were tested in desktop Chromium viewports; physical-phone installation is still unverified. No runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscription is claimed.
 
 ## How we built it
 
@@ -49,7 +49,7 @@ Authorization belongs in the backend. Students are scoped to their class, teache
 
 Demo accounts and synthetic seed records make the school scenario easy to explore. Account recovery uses a recovery code issued at registration. We deliberately did not connect an email delivery service, so the prototype does not send password-reset emails.
 
-**Verification gate:** describe deployed infrastructure only after the release has actually been published and checked. Keep the recovery-code limitation visible in the final description.
+The app is published at the HTTPS link below. Its hosted session cookies were checked for Secure and HttpOnly, and private API responses for `no-store`. Recovery and ordinary registration have local automated coverage; the hosted release walkthrough used demo sessions and did not exercise ordinary registration or demo reset.
 
 ## Challenges we ran into
 
@@ -57,13 +57,13 @@ The hardest design question was what “ready to hand over” actually means. A 
 
 Another challenge was serving three roles from one record without exposing every field to everyone. Students need materials, assignments, quizzes, and reminders. Receiving teachers need the instructional context. Administrators need the status and operational record. The interface and backend must agree on those boundaries.
 
-Moving a class also creates scheduling risks. A valid request needs both a complete handover and a compatible time slot. Our verification plan covers both the ordinary walkthrough and attempts to bypass those rules through the API.
+Moving a class also creates scheduling risks. A valid request needs both a complete handover and a compatible time slot. Tests cover the ordinary walkthrough and attempts to bypass those rules through the API.
 
 ## Accomplishments we're proud of
 
 The project turns a school communication problem into a concrete workflow: complete the handover, get an explicit response, then show each person the information they need for the next lesson.
 
-**Replace this sentence with measured release evidence before submitting:** `[CONFIRM: number and scope of automated checks, completed role walkthroughs, deployed test date, and the exact implementation revision.]`
+On 2026-10-04, Round 5 verification passed 33 product tests, 85 independent reviewer tests, 9 dev-browser cases, and 6 built-Worker browser cases. The final canonical offline-page repair passed 34 product tests, all 6 built-browser cases, and 28 service-worker behavior checks. The same authored offline test then passed 1/1 against the actual public HTTPS app. Three additional probes upgraded genuine R02 databases, including two interrupted seed attempts, while preserving ordinary accounts and established records. GitHub CI passed for the earlier released version. The deployed HTTPS walkthrough completed conflict rejection, return and resubmission, confirmation, cancellation, student privacy and todo persistence, timetable restoration, and logout revocation across four demo sessions. These counts describe separate suites and checks, not a single combined total. The validation report below records their scope, the earlier failed hosting attempt, and the successful final hosted checks.
 
 We do not yet have school pilot data or measured effects on teacher workload, missed lessons, or student outcomes. The current evidence should come from the working prototype and reproducible tests.
 
@@ -83,9 +83,7 @@ Operational next steps include school-approved account provisioning, email recov
 
 ## Built with
 
-React 19 · TypeScript · Vinext · Cloudflare Workers · Cloudflare D1 / SQLite · installable web app · OpenAI Codex · Cursor
-
-`[CONFIRM: add the actual tested UI, validation, styling, and testing libraries from package.json; remove tools that were not used.]`
+React 19 · TypeScript · Vinext · Cloudflare Workers · Cloudflare D1 / SQLite · Drizzle ORM · Lucide · CSS · Playwright · Node.js test runner · OpenAI Codex · Cursor
 
 ## AI-use disclosure
 
@@ -95,18 +93,20 @@ OpenAI Codex and Cursor assisted substantially with architecture, implementation
 
 | Devpost field | Value to enter |
 | --- | --- |
-| Public demo | `[CONFIRM: published URL, checked in an unauthenticated browser]` |
-| Source code | `[CONFIRM: publicly accessible GitHub repository URL]` |
+| Public demo | [Handover live app](https://handover-campus-2026.ziz81503.chatgpt.site); public access, version 3's hosted offline reload, and a real browser update were checked. |
+| Source code | [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026) |
 | Demo video | `[CONFIRM: uploaded 2-minute walkthrough URL, if provided]` |
-| Screenshots | Use the actual captures listed in [SCREENSHOT_PLAN.md](SCREENSHOT_PLAN.md). |
+| Screenshots | Eight synthetic-data captures are listed in [screenshots/README.md](screenshots/README.md); select the relevant files for upload. |
 | Team members | `[CONFIRM: participant name and Devpost profile; add all actual teammates]` |
-| Prior work / outside assets | `[CONFIRM: identify any pre-existing code or assets; do not assume “none”]` |
-| Validation report | Link the released repository's TEST_REPORT.md. |
+| Prior work / outside assets | Vinext starter, Manrope, Noto Sans TC subset, and Lucide; see [CREDITS.md](../CREDITS.md). `[CONFIRM: disclose any additional prior participant work or outside assets.]` |
+| Validation report | [TEST_REPORT.md](../TEST_REPORT.md); [earlier successful GitHub CI](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969); [current workflow runs](https://github.com/zhuang768/handover-csc-2026/actions). |
 
 ## Known limitations to carry into the final submission
 
 - No school has been claimed as a pilot partner, and no outcome statistics have been measured.
 - Password recovery uses a registration-issued recovery code. The prototype does not deliver reset emails.
 - The shared demo uses synthetic records; data isolation and production account provisioning need evaluation before school adoption.
-- `[CONFIRM: add any remaining incomplete, reduced-scope, unavailable, or only locally verified feature from TEST_REPORT.md.]`
-- Public deployment, repository access, and final Devpost submission remain unconfirmed until their actual URLs and evidence are supplied.
+- Physical iPhone/Android installation and standalone launch have not been tested. Responsive desktop viewports are not physical-device evidence.
+- Reminders are created on workspace load rather than sent through background push; calendar export is a file download rather than a subscription.
+- The product is currently unlicensed; third-party assets retain their own notices in CREDITS.md.
+- Final Devpost submission, participant eligibility, team details, terms, and any uploaded video require the participant's own action.
