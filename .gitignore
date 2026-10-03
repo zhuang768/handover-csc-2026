@@ -1,0 +1,11 @@
+.wrangler/
+handover/node_modules/
+handover/dist/
+handover/.next/
+handover/.wrangler/
+handover/.vinext/
+handover/.sites-runtime/
+handover/.env
+handover/.env.*
+!handover/.env.example
+.DS_Store
