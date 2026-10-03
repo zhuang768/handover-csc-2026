@@ -3,14 +3,14 @@ import { expect, test } from "@playwright/test";
 test("built worker offline reload shows the public page, not a synthetic event", async ({
   page,
 }) => {
-  const probed = await page.request.get("/offline", { maxRedirects: 0 });
+  const probed = await page.request.get("/offline.htm", { maxRedirects: 0 });
   expect(
     probed.status(),
     "canonical public offline route must not redirect",
   ).toBe(200);
   expect(probed.headers()["location"]).toBeUndefined();
   expect(probed.headers()["content-type"]).toMatch(/^text\/html\b/i);
-  expect(new URL(probed.url()).pathname).toBe("/offline");
+  expect(new URL(probed.url()).pathname).toBe("/offline.htm");
   expect(await probed.text()).toContain("needs a connection");
 
   await page.goto("/");
@@ -47,7 +47,7 @@ test("built worker offline reload shows the public page, not a synthetic event",
         const response = await cache.match(request);
         if (!response) continue;
         if (response.redirected) redirected = true;
-        if (new URL(request.url).pathname === "/offline") {
+        if (new URL(request.url).pathname === "/offline.htm") {
           bodies.push(await response.text());
           types.push(response.headers.get("content-type") ?? "");
         }
@@ -60,10 +60,13 @@ test("built worker offline reload shows the public page, not a synthetic event",
     cacheReport.urls.join("\n"),
   ).toBe(false);
   expect(
-    cacheReport.urls.some((url) => new URL(url).pathname === "/offline"),
+    cacheReport.urls.some((url) => new URL(url).pathname === "/offline.htm"),
   ).toBe(true);
   expect(
     cacheReport.urls.some((url) => new URL(url).pathname === "/offline.html"),
+  ).toBe(false);
+  expect(
+    cacheReport.urls.some((url) => new URL(url).pathname === "/offline"),
   ).toBe(false);
   expect(cacheReport.types).toHaveLength(1);
   expect(cacheReport.types[0]).toMatch(/^text\/html\b/i);

@@ -36,20 +36,16 @@ test("service worker does not cache private API responses", () => {
   const source = readFileSync("public/sw.js", "utf8");
   assert.match(source, /pathname\.startsWith\("\/api\/"\)/);
   assert.match(source, /request\.method !== "GET"/);
-  assert.match(source, /const OFFLINE_PATH = "\/offline"/);
+  assert.match(source, /const OFFLINE_PATH = "\/offline\.htm"/);
   assert.doesNotMatch(source, /cache\.put\(request,\s*copy\)[\s\S]*\/api\//);
-  const offline = readFileSync("public/offline", "utf8");
+  const offline = readFileSync("public/offline.htm", "utf8");
   assert.match(offline, /needs a connection/);
   assert.match(offline, /交接需要網路/);
 });
 
-test("canonical offline asset has an explicit HTML content type", () => {
-  const headers = readFileSync("public/_headers", "utf8");
-  assert.match(
-    headers,
-    /^\/offline\r?\n\s+Content-Type: text\/html; charset=utf-8$/m,
-  );
-  const offline = readFileSync("public/offline", "utf8");
+test("offline asset is self-contained public HTML", () => {
+  const offline = readFileSync("public/offline.htm", "utf8");
   assert.match(offline, /^<!doctype html>/i);
   assert.match(offline, /Nothing was\s+submitted/);
+  assert.doesNotMatch(offline, /<(?:script|link|iframe|img)\b/i);
 });

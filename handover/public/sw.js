@@ -1,6 +1,6 @@
-const VERSION = "handover-public-r05-canonical-1";
+const VERSION = "handover-public-r06-htm-1";
 const PREFIX = "handover-public-";
-const OFFLINE_PATH = "/offline";
+const OFFLINE_PATH = "/offline.htm";
 const PRECACHE = [
   OFFLINE_PATH,
   "/favicon.svg",
