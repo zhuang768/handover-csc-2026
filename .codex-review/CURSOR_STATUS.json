@@ -1,25 +1,27 @@
 {
   "status": "ready_for_review",
-  "round": 2,
-  "updatedAt": "2026-10-04T00:20:00+08:00",
+  "round": 3,
+  "updatedAt": "2026-10-04T00:55:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a",
+  "gitHead": "f3fa696115a86f98995686b6bb934b90492133ab",
   "completedRequirements": [
-    "R02 method guard: GET/HEAD actions return 405 and do not write",
-    "R02 accept/cancel/submit races are one batch with status checks",
-    "R02 accept rechecks occupancy; cancel restores original_* only if free",
-    "R02 student JSON omits reason, reasonCategory, teacherNotes, supplements, comments",
-    "R02 editor disables send until fields and a fresh conflict check pass",
-    "R02 detail opens with GET /api/requests/:id",
-    "R02 schema is Drizzle db/schema.ts plus drizzle/0000_init.sql; no request-time DDL",
-    "Visual R02B handbook: paper #F6F4EF, green #246B56, Manrope and Noto Sans TC subset"
+    "R03 seed failure rolls back; a later demo login rebuilds the school",
+    "R03 parallel first demo logins all receive a complete seed",
+    "R03 losing accept/decline/cancel/complete writes no extra timeline, audit, or notification",
+    "R03 submit rechecks lesson occupancy inside the Pending update",
+    "R03 Traditional Chinese layout is not capped at 38em",
+    "R03 next lesson uses the handover for that same lesson",
+    "R03 detail inputs reset when the request id changes",
+    "R03C installable web app: manifest, PNG icons, home-screen guide, safe area, offline page",
+    "Service worker caches only the public offline page, icons, and manifest",
+    "Approved handbook colors and type remain"
   ],
   "checks": [
     {
       "command": "npm test",
       "cwd": "handover",
       "exitCode": 0,
-      "summary": "24 passed"
+      "summary": "26 passed (24 API + 2 PWA file checks)"
     },
     {
       "command": "npm run lint",
@@ -43,18 +45,31 @@
       "command": "npm run build",
       "cwd": "handover",
       "exitCode": 0,
-      "summary": "vinext build completed"
+      "summary": "vinext build completed; dist/client/sw.js is JavaScript"
+    },
+    {
+      "command": "npm run db:generate",
+      "cwd": "handover",
+      "exitCode": 0,
+      "summary": "no schema changes"
+    },
+    {
+      "command": "HANDOVER_PERSIST=/tmp/handover-r03-empty npm run db:migrate",
+      "cwd": "handover",
+      "exitCode": 0,
+      "summary": "empty D1 applied 0000 and 0001; second run had no migrations"
+    },
+    {
+      "command": "npm run test:e2e",
+      "cwd": "handover",
+      "exitCode": 0,
+      "summary": "6 passed. Desktop Chromium at 390, 768, and 1440. Screenshots in handover/docs/screenshots."
     },
     {
       "command": "node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts",
       "cwd": "repo root",
       "exitCode": 0,
-      "summary": "73 passed, 0 failed. Independent tests were not edited by this commit."
-    },
-    {
-      "command": "browser http://127.0.0.1:5173/",
-      "exitCode": 0,
-      "summary": "Student Sunday empty today plus next Monday lesson; primary button white on rgb(36,107,86); blank teacher send disabled in EN and zh-Hant; admin class and teacher filters; 390/768/1440 had no page-level horizontal overflow."
+      "summary": "82 passed, 0 failed. Codex test files were not edited."
     }
   ],
   "publicUrl": null,
@@ -65,7 +80,8 @@
     "Confirmed lessons can be marked Completed before the lesson time. The spec has no time gate.",
     "Noto Sans TC in the app is a UI-string subset. Longer teacher text uses the next installed Traditional Chinese font.",
     "Product license is unspecified. Font and icon notices are in CREDITS.md.",
-    "No public deployment and no GitHub push in this round."
+    "No public deployment and no GitHub push in this round.",
+    "Physical iPhone and Android Add to Home Screen, then standalone launch, was not tested. Desktop Chromium at 390px is not that proof."
   ],
   "blockers": []
 }
