@@ -1,6 +1,10 @@
 # Handover — Devpost submission copy
 
-Status: **submission draft, not a submitted Devpost entry**. The public website, repository, and earlier successful CI run are linked below. [TEST_REPORT.md](../TEST_REPORT.md) records historical local, legacy-upgrade, HTTPS, version 3 offline, and real-update checks from before the English-only update. The English-only update subsequently passed 34 product tests, 13 dev-browser cases, and 6 built-browser cases locally, with format, lint, types, and build also passing. Hosted English-only verification and the full-repository text scan are pending. Physical-phone installation remains unverified; check the actual workflow for current CI results. The participant must complete the `[CONFIRM]` fields and retain the stated scope and limitations.
+Status: **submission draft, not a submitted Devpost entry**. The primary live app is [Handover on Cloudflare Workers](https://handover-campus-2026.ziz81503.workers.dev/). It uses a separate Cloudflare D1 database; no records were moved from the [original Sites app](https://handover-campus-2026.ziz81503.chatgpt.site/), which remains available with its data. Sign in again on the new origin; original Sites accounts and sessions do not transfer.
+
+[TEST_REPORT.md](../TEST_REPORT.md) records actual historical local, legacy-upgrade, Sites HTTPS, version 3 offline, and real-update checks. The English-only update passed 34 product tests, 13 dev-browser cases, and 6 built-browser cases locally, plus format, lint, types, build, and the full-repository text scan. Sites version 5 then passed its English hosted offline and resource checks. These are recorded Sites/local results, not a new Cloudflare production or CI pass. Physical-phone installation remains unverified; check the actual workflow for current CI results. The participant must complete the `[CONFIRM]` fields and retain the stated scope and limitations.
+
+The current Cloudflare release was verified separately: 34 unit tests and six built-browser cases using its actual configuration passed. Its live HTTPS origin passed a real four-session handover lifecycle, student privacy and preparation persistence, timetable restoration, logout replay rejection, resource/private-API checks, and one controlled Chromium offline case. See [the Cloudflare test record](../TEST_REPORT.md#cloudflare-deployment-2026-10-05). This is hosted desktop-browser evidence, not physical-phone installation or an assumed new CI result.
 
 ## Project name
 
@@ -39,7 +43,7 @@ Handover gives each role a clear next action:
 
 The workflow is Draft → Pending → Confirmed or Declined → Completed or Cancelled, with revision after a decline. Conflict checks prevent incompatible changes. The interface is English-only, with responsive layouts for classroom use on smaller screens.
 
-Before the English-only update, the core request lifecycle, conflict rejection, and student privacy were checked through four demo sessions on the deployed HTTPS app. Historical public version 3 also passed a real controlled offline reload and an offline-save failure check, and a native browser completed a real version 1 → 3 update while preserving the student session and the then-selected language. Responsive layouts were tested in desktop Chromium viewports; physical-phone installation is still unverified. No runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscription is claimed.
+Before the English-only update, the core request lifecycle, conflict rejection, and student privacy were checked through four demo sessions on the original Sites HTTPS app. Historical Sites version 3 also passed a real controlled offline reload and an offline-save failure check, and a native browser completed a real version 1 → 3 update while preserving the student session and the then-selected language. Responsive layouts were tested in desktop Chromium viewports; physical-phone installation is still unverified. These historical checks are not claimed as new-origin Cloudflare verification. No runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscription is claimed.
 
 ## How we built it
 
@@ -49,7 +53,7 @@ Authorization belongs in the backend. Students are scoped to their class, teache
 
 Demo accounts and synthetic seed records make the school scenario easy to explore. Account recovery uses a recovery code issued at registration. We deliberately did not connect an email delivery service, so the prototype does not send password-reset emails.
 
-The app is published at the HTTPS link below. Its hosted session cookies were checked for Secure and HttpOnly, and private API responses for `no-store`. Recovery and ordinary registration have local automated coverage; the hosted release walkthrough used demo sessions and did not exercise ordinary registration or demo reset.
+The primary app is published at the Cloudflare HTTPS link below, with its own D1 database. The original Sites release's session cookies were checked for Secure and HttpOnly, and private API responses for `no-store`. Recovery and ordinary registration have local automated coverage; hosted walkthroughs used demo sessions and did not exercise ordinary registration or demo reset. Current Cloudflare workflow, privacy, resource, and offline verification is recorded separately in the test report rather than inferred from the previous host.
 
 ## Challenges we ran into
 
@@ -91,21 +95,22 @@ OpenAI Codex and Cursor assisted substantially with architecture, implementation
 
 ## Links and team
 
-| Devpost field | Value to enter |
-| --- | --- |
-| Public demo | [Handover live app](https://handover-campus-2026.ziz81503.chatgpt.site); public access, historical version 3's hosted offline reload, and a real browser update were checked before the English-only update. Verify the current release before submitting. |
-| Source code | [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026) |
-| Demo video | `[CONFIRM: uploaded 2-minute walkthrough URL, if provided]` |
-| Screenshots | Eight actual English captures from 2026-10-05 are listed with measured dimensions in [screenshots/README.md](screenshots/README.md). Select the relevant files for upload. |
-| Team members | `[CONFIRM: participant name and Devpost profile; add all actual teammates]` |
-| Prior work / outside assets | Vinext starter, Manrope, and Lucide; see [CREDITS.md](../CREDITS.md). `[CONFIRM: disclose any additional prior participant work or outside assets.]` |
-| Validation report | [TEST_REPORT.md](../TEST_REPORT.md); [earlier successful GitHub CI](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969); [current workflow runs](https://github.com/zhuang768/handover-csc-2026/actions). |
+| Devpost field               | Value to enter                                                                                                                                                                                                                                                        |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public demo                 | [Handover live app](https://handover-campus-2026.ziz81503.workers.dev/), the primary Cloudflare app with an independent D1 database. Sign in again on this origin. Verify the current release before submitting; historical Sites results describe the original host. |
+| Source code                 | [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026)                                                                                                                                                                                         |
+| Demo video                  | `[CONFIRM: uploaded 2-minute walkthrough URL, if provided]`                                                                                                                                                                                                           |
+| Screenshots                 | Eight actual English captures from 2026-10-05 are listed with measured dimensions in [screenshots/README.md](screenshots/README.md). Select the relevant files for upload.                                                                                            |
+| Team members                | `[CONFIRM: participant name and Devpost profile; add all actual teammates]`                                                                                                                                                                                           |
+| Prior work / outside assets | Vinext starter, Manrope, and Lucide; see [CREDITS.md](../CREDITS.md). `[CONFIRM: disclose any additional prior participant work or outside assets.]`                                                                                                                  |
+| Validation report           | [TEST_REPORT.md](../TEST_REPORT.md); [earlier successful GitHub CI](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969); [current workflow runs](https://github.com/zhuang768/handover-csc-2026/actions).                                        |
 
 ## Known limitations to carry into the final submission
 
 - No school has been claimed as a pilot partner, and no outcome statistics have been measured.
 - Password recovery uses a registration-issued recovery code. The prototype does not deliver reset emails.
 - The shared demo uses synthetic records; data isolation and production account provisioning need evaluation before school adoption.
+- The Cloudflare and original Sites databases are independent. Original data remains on Sites and has not been imported; accounts and sessions do not carry over to the new address.
 - Physical iPhone/Android installation and standalone launch have not been tested. Responsive desktop viewports are not physical-device evidence.
 - Reminders are created on workspace load rather than sent through background push; calendar export is a file download rather than a subscription.
 - The product is currently unlicensed; third-party assets retain their own notices in CREDITS.md.
