@@ -1,66 +1,68 @@
-# CSC Back-to-School Hackathon
+# CSC Back-to-School Hackathon — original planning notes
 
-資料核對：2026-10-03。這是線上比賽，而且現在就在正式製作、提交期間。四場之中最優先處理這場。
+English translation of the original personal planning notes, checked on 2026-10-03. The references to “now” below describe that date. These notes do not establish current participant eligibility or submission status.
 
-## 最白話：在做什麼？
+This is an online competition, and the official development and submission period was underway when these notes were written. Of the four competitions under consideration, this one had the highest priority.
 
-做一個能改善學校生活的工具。例如讓學生更容易安排作業、讓社團整理資訊、改善校園溝通，或幫助有不同需求的同學使用校園服務。
+## What is the task?
 
-不限定只能寫程式，可以交網站、App、AI 工具、設計原型或實體裝置。重點是「校園裡真的有什麼問題，你的作品怎麼幫上忙」，不是塞越多功能越好。
+Build a tool that improves school life. Examples include helping students organize assignments, helping clubs manage information, improving school communication, or making campus services easier to use for students with different needs.
 
-## 時間、資格與形式
+The entry does not have to be software. A website, app, AI tool, design prototype, or physical device can qualify. Focus on a real school problem and how the project helps, rather than adding as many features as possible.
 
-- 線上、公開競賽，不需要到現場。
-- 13–18 歲高中生；你目前 16 歲、就讀高中，符合活動列出的年齡與學生條件。
-- 可個人或最多 4 人組隊。
-- 平台提交期間：台灣時間 2026-09-04 15:00 至 **2026-10-05 15:00**。
-- 官方規則的截止寫成 Pacific 10/5 中午，與平台日程的 Pacific 10/5 午夜不同。準備時採較早的 **10/5 下午 3 點**；不要假設晚一點仍能送出。
-- Devpost 條款另要求未達居住地成年年齡的使用者取得父母／監護人合法同意。部分贊助工具也有各自的帳號與同意條件。
+## Schedule, eligibility, and format
 
-## 要交什麼？
+- An open online competition; no in-person attendance is required.
+- High-school students aged 13–18. The original note described the participant as a 16-year-old high-school student and therefore within the stated age and student criteria. That description is historical, not identity verification.
+- Enter individually or in a team of up to four.
+- Platform submission window, Taiwan time: 2026-09-04 15:00 to **2026-10-05 15:00**.
+- The official rules listed noon Pacific on October 5, while the platform schedule listed midnight Pacific. Plan around the earlier deadline, **October 5 at 15:00 Taiwan time**, and do not assume a later submission will be accepted.
+- Devpost terms require legally valid parent or guardian consent for users below the age of majority where they live. Some sponsor tools have separate account and consent requirements.
 
-在 Devpost 的作品提交頁，準備以下內容：
+## What must be submitted?
 
-1. 作品名稱、要解決的問題，以及誰會使用。
-2. 主要功能、做法與實作過程，說清楚目前真的完成哪些部分。
-3. 能證明作品內容的展示材料，例如操作截圖、設計畫面、實際作品照片或 Demo。
-4. 使用的工具、資源與重要既有素材；隊員姓名。
-5. AI 使用揭露：用在哪裡、幫了什麼，以及你自己做的決策。
-6. 若有原始碼或設計檔，附上可存取的連結。
+Prepare the following for the Devpost project page:
 
-**1–2 分鐘 Demo 影片是選填，但官方鼓勵提供。** 不必為了拍長影片拖到錯過提交。
+1. Project name, the problem it addresses, and its intended users.
+2. Main features, approach, and development process, stating which parts are actually complete.
+3. Demonstration evidence, such as operating screenshots, design screens, photographs of the actual project, or a demo.
+4. Tools, resources, important pre-existing assets, and team member names.
+5. AI-use disclosure: where AI was used, how it helped, and the participant's own decisions.
+6. Accessible links to source code or design files, when available.
 
-若要角逐 Innovation Award／Honorable Mention，還要確認獎項參與選項、公開作品連結與主辦宣傳同意等要求。這些不要跟一般提交混為一談。
+**A 1–2 minute demo video is optional, but encouraged by the organizers.** Do not miss the deadline while trying to record a long video.
 
-## 舊作品、AI 能不能用？
+Innovation Award and Honorable Mention participation also requires checking prize choices, public project links, and organizer publicity consent. Those requirements are separate from the general submission requirements.
 
-- 賽前發想、研究與學習允許，但實質作品開發須在正式期間完成。
-- 既有程式、作品、資料集、設計與重要素材必須清楚揭露；不能直接假設整份舊作品原封不動提交就符合規則。
-- AI 允許且鼓勵，不因使用 AI 扣分；但必須揭露，也必須能解釋功能與自己的設計決策。
-- 若想用 QRAlarm，先核對哪些部分是在本次正式期間完成，再決定本次新增的校園功能。這份筆記沒有替你選定作品，也不代表 QRAlarm 已在這場交件。
+## Can prior work and AI be used?
 
-## 提供什麼資源？
+- Ideas, research, and learning before the competition are allowed, but substantial project development must take place during the official period.
+- Disclose pre-existing code, projects, datasets, designs, and important assets. Do not assume that submitting a complete older project unchanged meets the rules.
+- AI is allowed and encouraged, with no penalty solely for using it. Disclosure is required, and the participant must be able to explain the functionality and their design decisions.
+- If considering QRAlarm, first identify which parts were developed during this competition, then decide what new school feature to build. These notes did not choose the final entry and do not indicate that QRAlarm was submitted.
 
-官方列有贊助的 AI／App 開發、雲端、流程自動化、網域與程式學習工具。實際領取資格、啟用方式、期限與未成年使用條件要逐項看，不代表所有服務都可以無條件免費使用。
+## What resources are offered?
 
-## 現在可以怎麼做？
+The organizers listed sponsor tools for AI and app development, cloud hosting, workflow automation, domains, and learning to code. Check each service's eligibility, activation process, expiration, and minor-use requirements. The list does not mean every service is unconditionally free for everyone.
 
-建議只選一個小而清楚的校園問題，做出能展示的版本，不必等自平衡車的硬體完成。
+## Suggested next steps
 
-- [ ] 確認本次作品與賽前既有內容的界線。
-- [ ] 用一句話寫出「幫哪一種學生，解決什麼問題」。
-- [ ] 完成一條可操作、可展示的主要流程。
-- [ ] 整理截圖／Demo、作品說明、AI 與既有素材揭露。
-- [ ] 確認評審打得開所有作品連結。
-- [ ] 在台灣時間 10/5 下午 3 點前完成提交並查看成功狀態。
+Choose one small, clear school problem and build a demonstrable version. There is no need to wait for the self-balancing vehicle hardware to be complete.
 
-以上是準備清單，並未替你提交作品。
+- [ ] Distinguish the competition project from pre-existing work.
+- [ ] State in one sentence which students are helped and what problem is solved.
+- [ ] Complete one usable, demonstrable main workflow.
+- [ ] Prepare screenshots or a demo, the project description, and disclosures of AI use and prior assets.
+- [ ] Confirm that judges can open every project link.
+- [ ] Submit before October 5 at 15:00 Taiwan time and check the successful-submission status.
 
-## 官方來源
+This is a preparation checklist; no project was submitted through these notes.
 
-- [比賽介紹、提交要求與贊助工具](https://csc-back-to-school.devpost.com/)
-- [正式規則](https://csc-back-to-school.devpost.com/rules)
-- [平台精確提交期間](https://csc-back-to-school.devpost.com/details/dates)
-- [Devpost 使用條款](https://info.devpost.com/legal/terms-of-service)
+## Official sources
 
-本文件是個人準備筆記；提交前以最新官方頁面再次核對。
+- [Competition overview, submission requirements, and sponsor tools](https://csc-back-to-school.devpost.com/)
+- [Official rules](https://csc-back-to-school.devpost.com/rules)
+- [Exact platform submission window](https://csc-back-to-school.devpost.com/details/dates)
+- [Devpost terms of service](https://info.devpost.com/legal/terms-of-service)
+
+These are personal planning notes. Recheck the current official pages before submitting.

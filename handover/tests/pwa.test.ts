@@ -40,12 +40,14 @@ test("service worker does not cache private API responses", () => {
   assert.doesNotMatch(source, /cache\.put\(request,\s*copy\)[\s\S]*\/api\//);
   const offline = readFileSync("public/offline.htm", "utf8");
   assert.match(offline, /needs a connection/);
-  assert.match(offline, /交接需要網路/);
+  assert.doesNotMatch(offline, /\p{Script=Han}/u);
+  assert.doesNotMatch(source, /\p{Script=Han}/u);
 });
 
 test("offline asset is self-contained public HTML", () => {
   const offline = readFileSync("public/offline.htm", "utf8");
   assert.match(offline, /^<!doctype html>/i);
   assert.match(offline, /Nothing was\s+submitted/);
+  assert.match(offline, /<html lang="en">/);
   assert.doesNotMatch(offline, /<(?:script|link|iframe|img)\b/i);
 });

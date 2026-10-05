@@ -24,7 +24,7 @@ Seeded people, lessons, and requests are marked `is_demo = 1`. Reset deletes onl
 
 ## Installed web app
 
-Handover is used from a URL and can be added to the home screen. `public/sw.js` precaches only the offline page, icons, and manifest. Navigations are network-first. API, auth, and non-GET requests are not cached. The worker asset config sets `html_handling` to `none`, so `/offline.html` is the file itself. A redirected public response is not stored. Activation deletes only older `handover-public-` caches. An offline submit is not reported as success and is not queued. A new version reloads after the user confirms and the new worker takes control, and not while a draft, comment, supplement, or profile edit is open.
+Handover is used from a URL and can be added to the home screen. `public/sw.js` precaches only the offline page, icons, and manifest. Navigations are network-first. API, auth, and non-GET requests are not cached. The canonical offline resource is `/offline.htm`, chosen after the host redirected `.html` and served the extensionless attempt with the wrong MIME. The earlier published version passed hosted HTTP and controlled-offline checks; see `TEST_REPORT.md` for historical evidence and the English-only update status. A redirected public response is not stored. Activation deletes only older `handover-public-` caches. An offline submit is not reported as success and is not queued. A new version reloads after the user confirms and the new worker takes control, and not while a draft, comment, supplement, or profile edit is open.
 
 `npm run db:migrate` always passes Wrangler `--local`. It does not migrate the Sites database. A published Site applies the SQL already in the portable package.
 
@@ -32,4 +32,4 @@ An existing school that already has demo classes and lessons is marked `seed_com
 
 ## Deferred
 
-Public deployment and GitHub push are not claimed as done. A physical iPhone or Android “Add to Home Screen, then open standalone” check was not run. Subject templates in the editor are deterministic starters, not an AI model.
+The website and repository were published before the English-only update; the current update needs its own release verification. A physical iPhone or Android “Add to Home Screen, then open standalone” check was not run. Subject templates in the editor are deterministic starters, not an AI model.

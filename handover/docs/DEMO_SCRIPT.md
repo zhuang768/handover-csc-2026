@@ -1,54 +1,54 @@
-# Handover — 2-minute demo script
+# Handover — English demo script
 
-錄影目標：**120 秒**，符合使用者要求的 3 分鐘內，也落在[官方鼓勵的 1–2 分鐘](https://csc-back-to-school.devpost.com/)範圍。官方影片選填，沒有要求一定要 3 分鐘。
+Recording target: **120 seconds**, within the requested three-minute maximum and the [organizers' encouraged 1–2 minutes](https://csc-back-to-school.devpost.com/). A video is optional; the organizers do not require a three-minute recording.
 
-狀態：**錄製腳本草稿。** 下列操作必須先在實際公開版本跑通；任何未完成或未驗證的畫面都不能用剪接偽裝成成功。已通過項目以 TEST_REPORT.md 為準。
+Status: **recording draft, not a completed video**. Run the operations on the actual public English-only release before recording. Do not edit incomplete or unverified screens to look successful. Use TEST_REPORT.md to identify the tested version and scope.
 
-## 錄影前準備
+## Before recording
 
-1. 重置 demo，預先確認三個角色帳號與資料可用。
-2. 準備 4 個分開的瀏覽器 profile／私密視窗：原老師、接課老師、學生、Admin。不同分頁通常共用 cookie，不能靠分頁保留不同身分。
-3. 在老師畫面選一筆 **尚未提交**的可用課程；確認代課對象在該時段有空。
-4. 使用合成例子：數學 Unit 4、workbook pages 32–34、bring workbook、submit worksheet。不要放真實學生個資。
-5. 把尚未驗證的 P2 畫面移除。第 7 鏡預設展示英文／繁中與手機學生視圖，無障礙大字若已驗證可替換。
-6. 開啟英文介面；錄影解析度以 1920×1080 為主，手機鏡頭約 390px 寬。
-7. 可預先填好長欄位，但必須真的按送出、接受及勾選，保留載入與成功後的結果。
+1. Prepare clean synthetic demo data and confirm all three role types are available. If using admin demo reset, confirm the target environment and the action before resetting shared data.
+2. Prepare four separate browser profiles or private contexts: original teacher, receiving teacher, student, and administrator. Ordinary tabs usually share cookies and do not preserve separate identities.
+3. Choose an available lesson that has **not been submitted**, and verify that the substitute is free at that time.
+4. Use a synthetic example: mathematics Unit 4, workbook pages 32–34, bring the workbook, and submit the worksheet. Do not include real student personal data.
+5. Omit unverified optional features. Shot 7 shows the student preparation list at a narrow viewport; it does not demonstrate a physical-phone install.
+6. Record primarily at 1920×1080; use a roughly 390px-wide browser viewport for the responsive student shot.
+7. Long fields may be prepared in advance, but actually click submit, accept, and the preparation checkbox. Retain the loading and resulting states.
 
-## 逐字稿與分鏡
+## Narration and storyboard
 
-總共約 244 個英文單字，平均每分鐘約 122 個字。鏡頭時間包含操作與停頓，不必把每個欄位逐字讀出。
+The narration is approximately 240–250 words, or about 120–125 words per minute. Shot timing includes operations and pauses; do not read every field aloud.
 
-| 時間 | 秒數 | 畫面與操作 | 英文逐字稿 |
+| Time | Seconds | Screen and action | Exact English narration |
 | --- | ---: | --- | --- |
-| 0:00–0:14 | 14 | 開場：簡單顯示課表異動與產品名稱，游標指向教材／作業資訊。 | “A teacher is absent. Students hear, ‘Tomorrow, study on your own.’ But what should they bring? What happens to the quiz? And where should the next teacher begin?” |
-| 0:14–0:27 | 13 | 登入頁，一鍵老師登入；開啟建立調課，留一個必填欄位空白，顯示缺漏與無法送出。 | “Handover carries the lesson through a class change. Its rule is simple: no complete handover, no submission. Here, missing lesson context keeps the request from moving forward.” |
-| 0:27–0:52 | 25 | 選一堂課及代課老師；補齐教學進度、內容、材料、作業／小考、教室需求與兩種提醒，按送出；停留 Pending 結果。可插入已確認正常的衝堂提示。 | “I choose the class and a substitute, then explain our progress, the suggested lesson, materials, assignments, and reminders. Teacher notes stay separate from student information. The schedule is checked for conflicts. With the required details complete, I submit one record that everyone can follow.” |
-| 0:52–1:08 | 16 | 接課老師独立視窗，進入待確認通知／清單，打開交接內容，按接受，显示 Confirmed 與時間軸。 | “The receiving teacher opens the handover and accepts it. If the plan needs work, they can decline with a reason. The original teacher can revise and resubmit. Each transition remains visible in the history.” |
-| 1:08–1:28 | 20 | 學生視窗，班級 Today／This Week 開啟同一筆異動，勾選準備教材；重新載入，保持勾選。 | “The student now sees the class change and a concrete preparation list: bring the workbook, submit the worksheet, and review the next unit. I check a task and reload. My progress is saved, and I only see information for my class.” |
-| 1:28–1:43 | 15 | Admin 視窗，搜尋該筆紀錄、篩選 Pending／Confirmed，開啟完整時間軸；實際統計／風險區僅驗證後展示。 | “The school office can find the same request, filter its status, and see who acted and when. It becomes a shared operational record instead of another message to chase.” |
-| 1:43–1:52 | 9 | 切換繁體中文，縮至手機學生視圖，顯示可操作的準備清單。 | “English and Traditional Chinese support the same workflow. On a phone, students still get a clear next action before class.” |
-| 1:52–2:00 | 8 | 收尾：產品名稱與公開網址（只有真實發布後填入），字幕 AI development assistance disclosed。 | “Our next step is a school pilot. Handover makes every class change a handover, so learning can continue.” |
+| 0:00–0:14 | 14 | Introduce the timetable change and product name. Point to materials and assignment information. | “A teacher is absent. Students hear, ‘Tomorrow, study on your own.’ But what should they bring? What happens to the quiz? And where should the next teacher begin?” |
+| 0:14–0:27 | 13 | Use demo teacher sign-in. Open a new request, leave a required field empty, and show the missing-field feedback and disabled submission. | “Handover carries the lesson through a class change. Its rule is simple: no complete handover, no submission. Here, missing lesson context keeps the request from moving forward.” |
+| 0:27–0:52 | 25 | Choose a lesson and substitute. Complete progress, plan, materials, assessment, room needs, and reminders. Submit and show Pending. Include a real, verified conflict message if time permits. | “I choose the class and a substitute, then explain our progress, the suggested lesson, materials, assignments, and reminders. Teacher notes stay separate from student information. The schedule is checked for conflicts. With the required details complete, I submit one record that everyone can follow.” |
+| 0:52–1:08 | 16 | In the receiving teacher's separate context, open the pending request, review the handover, accept, and show Confirmed and the timeline. | “The receiving teacher opens the handover and accepts it. If the plan needs work, they can decline with a reason. The original teacher can revise and resubmit. Each transition remains visible in the history.” |
+| 1:08–1:28 | 20 | In the student context, open the same change from Today or This Week, check a preparation task, and reload to show persistence. | “The student now sees the class change and a concrete preparation list: bring the workbook, submit the worksheet, and review the next unit. I check a task and reload. My progress is saved, and I only see information for my class.” |
+| 1:28–1:43 | 15 | In the admin context, find the request, filter its status, and open the complete timeline. Show statistics only if verified. | “The school office can find the same request, filter its status, and see who acted and when. It becomes a shared operational record instead of another message to chase.” |
+| 1:43–1:52 | 9 | Show the responsive English student screen at a narrow viewport with the usable preparation list. | “On a smaller screen, students still see the lesson, materials, and preparation list, with a clear next action before class.” |
+| 1:52–2:00 | 8 | Close with the product name and real public URL. Include the AI-assistance disclosure. | “Our next step is a school pilot. Handover makes every class change a handover, so learning can continue.” |
 
-## 可選替換鏡頭
+## Optional replacement shot
 
-P2 未通過前，不使用「AI 產生交接單」「QR 交接卡」「家長連結」等描述。若大字／高對比模式已驗證，可用以下 9 秒鏡頭替換 1:43–1:52，總長維持 120 秒：
+Do not describe AI-generated handovers, QR cards, or parent links unless the released feature is verified. If larger-text or high-contrast mode has been verified, replace the 1:43–1:52 shot with the following nine-second shot while keeping the total at 120 seconds:
 
-畫面：手機學生頁开启大字模式，準備清單仍能完整顯示及勾選。
+Screen: enable larger text on the student page and show that the complete preparation list remains readable and usable.
 
 > “Larger text makes the preparation list easier to read. Accessibility supports the same lesson, without asking students to find a different workflow.”
 
-若學期影響分析已驗證，也可改為 Admin 圖表，必須明確標記 synthetic demo data，不把圖表當實測效益。
+A verified admin impact chart is another option. Label it **synthetic demo data** and do not present it as measured school outcomes.
 
-## 字幕、收尾與最終確認
+## Captions, closing, and final checks
 
-- 全片英文字幕；可另附繁中字幕檔，不用佔畫面放兩種全文。
-- 開場只描述情境，不聲稱已訪談或試辦。
-- 末尾可加小字：**Built with AI assistance. See project disclosure. Synthetic demo data.**
-- demo URL、repo URL、隊員姓名只放真實可分享的值。
-- [ ] 未填完交接不能送出：實際操作有錄到。
-- [ ] 送出後接課老師看见同一筆：不是兩筆不同的 seed 案例。
-- [ ] 接受後學生及 Admin 顯示一致紀錄。
-- [ ] 學生勾選後重新載入仍保存。
-- [ ] 成片長度 ≤ 2:00；移除錄影前的等待、切換 profile 與冗長輸入。
-- [ ] 所有旁白主張符合公開版本及 TEST_REPORT.md。
-- [ ] 分享連結不用登入也可播放。
+- Use English narration, captions, and interface text throughout.
+- Describe the opening scenario without claiming interviews or a school pilot.
+- Closing small print may say: **Built with AI assistance. See project disclosure. Synthetic demo data.**
+- Use only real, shareable demo and repository URLs and confirmed participant names.
+- [ ] The recording actually shows that an incomplete handover cannot be submitted.
+- [ ] The receiving teacher sees the same submitted request, not a different seeded example.
+- [ ] After acceptance, the student and admin show the same record.
+- [ ] The student's checked preparation task remains after reload.
+- [ ] The finished video is no longer than 2:00; remove setup waits, profile switching, and lengthy typing.
+- [ ] Every narration claim matches the public English-only release and its test report.
+- [ ] The shared video plays without requiring login.

@@ -55,7 +55,30 @@ async function widthReport(page: Page) {
   }));
 }
 
-test("login and role shells keep their width in English and Traditional Chinese", async ({
+async function expectEnglish(page: Page) {
+  const report = await page.evaluate(() => ({
+    language: document.documentElement.lang,
+    hasChinese: /\p{Script=Han}/u.test(
+      [
+        document.body.innerText,
+        ...Array.from(
+          document.querySelectorAll("[aria-label], [title], [placeholder]"),
+        ).flatMap((node) => [
+          node.getAttribute("aria-label"),
+          node.getAttribute("title"),
+          node.getAttribute("placeholder"),
+        ]),
+      ].join("\n"),
+    ),
+  }));
+  expect(report.language).toBe("en");
+  expect(
+    report.hasChinese,
+    "visible and accessible runtime text is English",
+  ).toBe(false);
+}
+
+test("English login keeps its width at phone, tablet and desktop sizes", async ({
   page,
 }) => {
   for (const width of [390, 768, 1440]) {
@@ -68,25 +91,196 @@ test("login and role shells keep their width in English and Traditional Chinese"
         );
       }
     }, width);
-    const shell = page.locator(".shell, .auth-shell, body").first();
+    await expect(page.locator(".auth-shell")).toBeVisible();
+    const shell = page.locator(".auth-shell");
     const box = await shell.boundingBox();
     expect(box?.width ?? 0).toBeGreaterThan(width * 0.9);
     const measured = await widthReport(page);
     expect(measured.inner).toBe(width);
     expect(measured.scroll).toBeLessThanOrEqual(measured.client);
+    await expectEnglish(page);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole("button", { name: "繁體中文" }).click();
-  const zhWidth = await page.evaluate(() => ({
-    client: document.documentElement.clientWidth,
-    shell: document
-      .querySelector(".shell, .auth-shell")
-      ?.getBoundingClientRect().width,
-  }));
-  expect(zhWidth.client).toBe(1440);
-  expect(zhWidth.shell ?? 0).toBeGreaterThan(1000);
-  await save(page, "01-login-zh-1440.png");
+  await save(page, "01-login-en-1440.png");
 });
+
+test("legacy language preferences migrate to English without losing display settings", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem("handover-prefs")) return;
+    localStorage.setItem(
+      "handover-prefs",
+      JSON.stringify({
+        language: "zh",
+        theme: "dark",
+        large: true,
+        contrast: true,
+        simple: true,
+      }),
+    );
+  });
+  await page.goto("/");
+  await expect(page.locator(".auth-shell")).toBeVisible();
+  await expectEnglish(page);
+  await expect(page.getByRole("button", { name: /^English$/ })).toHaveCount(0);
+  const migrated = () =>
+    page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("handover-prefs") ?? "{}") as {
+          language: string;
+          theme: string;
+          large: boolean;
+          contrast: boolean;
+          simple: boolean;
+        },
+    );
+  expect(await migrated()).toEqual({
+    language: "en",
+    theme: "dark",
+    large: true,
+    contrast: true,
+    simple: true,
+  });
+  for (const role of ["Student", "Original teacher", "School admin"]) {
+    await demo(page, role);
+    await expectEnglish(page);
+    const shell = page.locator(".handover-root");
+    await expect(shell).toHaveAttribute("data-theme", "dark");
+    await expect(shell).toHaveAttribute("data-large", "true");
+    await expect(shell).toHaveAttribute("data-contrast", "true");
+    await expect(shell).toHaveAttribute(
+      "data-simple",
+      String(role === "Student"),
+    );
+    if (role === "Student") {
+      await page
+        .getByRole("button", { name: "My profile", exact: true })
+        .click();
+      await expect(page.getByLabel("Dark mode")).toBeChecked();
+      await expect(page.getByLabel("Larger text")).toBeChecked();
+      await expect(page.getByLabel("High contrast")).toBeChecked();
+      await expect(page.getByLabel("Simple student view")).toBeChecked();
+    } else if (role === "Original teacher") {
+      await page
+        .getByRole("button", { name: "Handovers", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "New handover", exact: true })
+        .click();
+      await page.getByRole("button", { name: "Use subject template" }).click();
+      await expect(
+        page.getByRole("textbox", { name: "Equipment" }),
+      ).toHaveValue("Board and one shared projector");
+      await expectEnglish(page);
+      await page
+        .getByRole("button", { name: "My profile", exact: true })
+        .click();
+      await page.route("**/api/profile", (route) =>
+        route.fulfill({ status: 422, json: { error: "VALIDATION_ERROR" } }),
+      );
+      await page.getByRole("button", { name: "Save profile" }).click();
+      await expect(page.getByRole("alert")).toContainText(
+        "Please check your information and try again.",
+      );
+      await expectEnglish(page);
+      await page.unroute("**/api/profile");
+    } else {
+      const activity = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/admin/audit") &&
+          response.status() === 200,
+      );
+      await page
+        .getByRole("button", { name: "Activity log", exact: true })
+        .click();
+      await activity;
+      await expectEnglish(page);
+    }
+  }
+  await page.reload();
+  await expect(page.locator(".shell")).toBeVisible();
+  await expectEnglish(page);
+  expect(await migrated()).toMatchObject({
+    language: "en",
+    theme: "dark",
+    large: true,
+    contrast: true,
+    simple: true,
+  });
+});
+
+for (const storageFailure of [
+  "malformed",
+  "read-denied",
+  "write-denied",
+] as const) {
+  test(`English login survives ${storageFailure} preferences`, async ({
+    page,
+  }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await page.addInitScript((failure) => {
+      if (failure === "malformed") {
+        localStorage.setItem("handover-prefs", "{invalid json");
+      } else if (failure === "read-denied") {
+        const original = Storage.prototype.getItem;
+        Storage.prototype.getItem = function (key) {
+          if (key === "handover-prefs") {
+            throw new DOMException("Storage access denied", "SecurityError");
+          }
+          return original.call(this, key);
+        };
+      } else {
+        localStorage.setItem(
+          "handover-prefs",
+          JSON.stringify({
+            language: "zh",
+            theme: "dark",
+            large: true,
+            contrast: true,
+            simple: true,
+          }),
+        );
+        const original = Storage.prototype.setItem;
+        Storage.prototype.setItem = function (key, value) {
+          if (key === "handover-prefs") {
+            throw new DOMException(
+              "Storage quota reached",
+              "QuotaExceededError",
+            );
+          }
+          original.call(this, key, value);
+        };
+      }
+    }, storageFailure);
+    await page.goto("/");
+    await expect(page.locator(".auth-shell")).toBeVisible();
+    await expectEnglish(page);
+    await demo(page, "Student");
+    await expectEnglish(page);
+    const shell = page.locator(".handover-root");
+    await expect(shell).toHaveAttribute(
+      "data-theme",
+      storageFailure === "write-denied" ? "dark" : "light",
+    );
+    if (storageFailure === "write-denied") {
+      await expect(shell).toHaveAttribute("data-large", "true");
+      await expect(shell).toHaveAttribute("data-contrast", "true");
+      await expect(shell).toHaveAttribute("data-simple", "true");
+    }
+    await page.getByRole("button", { name: "My profile", exact: true }).click();
+    await page
+      .getByLabel("Dark mode")
+      .setChecked(storageFailure !== "write-denied");
+    await expect(shell).toHaveAttribute(
+      "data-theme",
+      storageFailure === "write-denied" ? "light" : "dark",
+    );
+    await expectEnglish(page);
+    expect(pageErrors).toEqual([]);
+  });
+}
 
 test("student next lesson matches that lesson id, date, and period", async ({
   page,
@@ -180,6 +374,7 @@ test("a failed conflict check can be retried without clearing the form", async (
   await expect(
     page.getByRole("button", { name: "Send for confirmation" }),
   ).toBeEnabled();
+  await expectEnglish(page);
   await save(page, "03-teacher-editor.png");
 });
 
@@ -230,11 +425,11 @@ test("dark primary button text stays light on the green control", async ({
   expect(colors.color).toBe("rgb(255, 255, 255)");
   expect(colors.background).toBe("rgb(36, 107, 86)");
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByRole("button", { name: "繁體中文" }).click();
-  await page.getByRole("button", { name: "總覽" }).click();
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   const admin = await widthReport(page);
   expect(admin.scroll).toBeLessThanOrEqual(admin.client);
-  await save(page, "04-admin-zh-1440.png");
+  await expectEnglish(page);
+  await save(page, "04-admin-en-1440.png");
 });
 
 test("logged-in roles keep one phone nav and no horizontal overflow", async ({
@@ -267,13 +462,7 @@ test("logged-in roles keep one phone nav and no horizontal overflow", async ({
         await expect(page.locator(".desktop-nav")).toBeVisible();
         await expect(page.locator(".bottom-nav")).toBeHidden();
       }
-      if (width < 768) await page.getByRole("button", { name: "More" }).click();
-      await page.getByRole("button", { name: "繁體中文" }).click();
-      const zh = await widthReport(page);
-      expect(zh.scroll).toBeLessThanOrEqual(zh.client);
-      await page.getByRole("button", { name: "English" }).click();
-      if (width < 768)
-        await page.getByRole("button", { name: "Close" }).click();
+      await expectEnglish(page);
     }
   }
   await page.setViewportSize({ width: 768, height: 1024 });
