@@ -169,3 +169,17 @@ Not claimed: a full keyboard tour of every field, reduced-motion computed style,
 These three bullets were the Round 1 limit. Round 4 measured 390, 768, and 1440 after login and ran Playwright, including a built-worker offline reload. They are not the current result.
 
 Still not verified: physical iPhone/Android Add to Home Screen and standalone launch. Hosted ordinary registration and demo reset were not exercised in the four-session release walkthrough. Public HTTPS workflow, version 3's hosted offline reload and real version update, GitHub CI for the earlier release, and the three pinned historical probes have the evidence recorded above. The latest repair's CI status must be read from its actual workflow run; final Devpost submission is a separate participant action.
+
+## Cloudflare deployment, 2026-10-05
+
+The current app is deployed at [Handover on Cloudflare](https://handover-campus-2026.ziz81503.workers.dev/). Worker `handover-campus-2026` uses its own D1 database through binding `DB`. Both `0000_init.sql` and `0001_opposite_kree.sql` were applied remotely. The earlier Sites database was preserved; its records were not copied into Cloudflare.
+
+- English guard, formatting, lint, TypeScript, 34 unit tests, build, and Wrangler deployment dry-run passed.
+- All 13 development browser cases passed, including phone/tablet/desktop layouts and preference-storage failures.
+- Six built-worker browser cases passed using `playwright.cloudflare.config.ts`, the actual Cloudflare configuration, and isolated local D1 storage. CI uses these same six cases in place of the earlier generated Sites configuration.
+- Live HTTPS checks passed for the manifest, correctly sized icons, JavaScript service worker, canonical `/offline.htm`, and unauthenticated private API rejection. The service worker and manifest return `Cache-Control: no-cache`; private API responses return `no-store`.
+- Real student, teacher, and administrator sessions passed workspace and logout-replay checks.
+- A four-session hosted walkthrough passed Draft, Pending, Declined, revised Pending, Confirmed, and Cancelled transitions. Student preparation persisted, teacher-only notes remained private, occupied slots were rejected, and cancellation restored the original lesson. Only test-owned demo requests were created; no school reset or ordinary registration was performed.
+- Hosted Chromium passed an actual service-worker-controlled offline reload. Physical iPhone/Android installation remains unverified.
+
+The compatibility date remains `2026-05-15`, matching the existing tested build and the installed local Workers runtime. Do not advance it without updating and validating the runtime. `public/.assetsignore` excludes Finder metadata and development files from uploaded static assets.

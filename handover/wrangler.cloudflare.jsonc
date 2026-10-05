@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "handover-campus-2026",
+  "account_id": "5a215a2a3ffc384e958ae5bcb53687d0",
+  "main": "./dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "workers_dev": true,
+  "preview_urls": false,
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
+  "assets": {
+    "directory": "./dist/client",
+    "html_handling": "none",
+  },
+  "vars": {
+    "TEACHER_INVITE_CODE": "HANDOVER-2026",
+    "DEMO_MODE": "true",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "handover-campus-2026",
+      "database_id": "11939093-3107-437f-bf52-21e5f2f57f4e",
+      "migrations_dir": "./drizzle",
+    },
+  ],
+}

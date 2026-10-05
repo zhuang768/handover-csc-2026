@@ -1,10 +1,20 @@
 # Handoff
 
-The current source and documentation are English-only. On 2026-10-05, actual local verification passed 34 product tests, 13 dev E2E cases, and 6 built E2E cases (6.7 seconds); format, lint, types, and build each exited 0. Eight English screenshots were regenerated with actual dimensions in `docs/screenshots/README.md`. The full-repository `check:english` scan awaits completion of reviewer-document translations, and hosted verification of the English-only update is pending. Earlier evidence below is explicitly historical, not a new hosted English-only run.
+The primary [live app](https://handover-campus-2026.ziz81503.workers.dev/) now runs on Cloudflare Workers with a separate Cloudflare D1 database. The [original Sites app](https://handover-campus-2026.ziz81503.chatgpt.site/) and its existing data are preserved. No accounts, requests, or other records were moved. First use of the new origin requires another sign-in; old Sites sessions do not carry over. The new database has the existing synthetic-demo workflow rather than imported Sites records.
+
+The current source and documentation are English-only. On 2026-10-05, actual local verification passed 34 product tests, 13 dev E2E cases, and 6 built E2E cases (6.7 seconds); format, lint, types, and build each exited 0. Eight English screenshots were regenerated with actual dimensions in `docs/screenshots/README.md`. The full-repository `check:english` scan subsequently passed, and Sites version 5 passed the English hosted offline and strict resource checks, as recorded in `TEST_REPORT.md`. Those are Sites/local results, not newly claimed Cloudflare production or CI results.
+
+## Current Cloudflare operation
+
+See `README.md` for `cloudflare:check`, `cloudflare:migrate`, `cloudflare:deploy`, and `test:e2e:cloudflare`. Wrangler uses the existing OAuth sign-in. `wrangler.cloudflare.jsonc` contains the actual public account/database identifiers, the `DB` binding, and compatibility date `2026-05-15`, validated with the current Wrangler/workerd. No token belongs in the repository. `db:migrate` remains local-only; `cloudflare:migrate` explicitly targets the independent remote Cloudflare database. The Cloudflare E2E command targets an isolated local D1 on port 8790, not the live origin. Physical iPhone/Android installation remains unverified.
+
+Current Worker version: `6f6e84ff-6cf9-41e1-a92a-609e087dc07b`. Actual verification passed 34 unit tests and six built-browser cases against the Cloudflare configuration. The live origin passed HTTPS resource and private-API checks, four demo sessions through Draft → Pending → Declined → revised Pending → Confirmed → Cancelled, student privacy and preparation persistence, cancellation restoration, logout replay rejection, and one hosted Chromium controlled-offline case. See [the Cloudflare test record](TEST_REPORT.md#cloudflare-deployment-2026-10-05). Ordinary hosted registration, school reset, physical-phone installation, and a new remote CI result are not claimed.
+
+## Historical Sites delivery
 
 Round 5's integrated local checks and three pinned historical probes passed. The public Site and GitHub repository are available. Version 3 passed hosted offline verification and a real version 1 → 3 browser update. Round 3 did not pass independent review. Do not treat an older 82-pass run as the current suite.
 
-Codex completed the Round 5 repairs after Cursor stopped at its usage limit before making Round 5 product changes. The [live app](https://handover-campus-2026.ziz81503.chatgpt.site), [public repository](https://github.com/zhuang768/handover-csc-2026), and [successful GitHub CI run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969) are recorded here. Physical-phone installation and final Devpost submission remain unverified.
+Codex completed the Round 5 repairs after Cursor stopped at its usage limit before making Round 5 product changes. The [historical Sites app](https://handover-campus-2026.ziz81503.chatgpt.site), [public repository](https://github.com/zhuang768/handover-csc-2026), and [earlier successful GitHub CI run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969) are recorded here. Physical-phone installation and final Devpost submission remain unverified.
 
 ## Round 5 handoff
 
