@@ -1,6 +1,6 @@
 # Handover — Devpost submission copy
 
-狀態：**提交草稿；正式網站、公開 GitHub 與先前成功 CI 連結已提供，尚未代為送出 Devpost。** 已完成的本機、歷史升級、正式 HTTPS、v3 真離線與真版本更新驗證見 [TEST_REPORT.md](../TEST_REPORT.md)。真機安裝仍待驗證；最新修補的 CI 須依實際 workflow 結果確認。`[CONFIRM]` 欄位必須由本人補齊，並保留驗證範圍與限制。
+Status: **submission draft, not a submitted Devpost entry**. The public website, repository, and earlier successful CI run are linked below. [TEST_REPORT.md](../TEST_REPORT.md) records historical local, legacy-upgrade, HTTPS, version 3 offline, and real-update checks from before the English-only update. The English-only update subsequently passed 34 product tests, 13 dev-browser cases, and 6 built-browser cases locally, with format, lint, types, and build also passing. Hosted English-only verification and the full-repository text scan are pending. Physical-phone installation remains unverified; check the actual workflow for current CI results. The participant must complete the `[CONFIRM]` fields and retain the stated scope and limitations.
 
 ## Project name
 
@@ -37,9 +37,9 @@ Handover gives each role a clear next action:
 - **Students:** see relevant class changes and a preparation checklist. Student-facing materials and reminders are separate from notes intended for teachers.
 - **School administrators:** inspect requests across the school, filter records, and follow status history.
 
-The workflow is Draft → Pending → Confirmed or Declined → Completed or Cancelled, with revision after a decline. Conflict checks prevent incompatible changes. The interface supports English and Traditional Chinese, with responsive layouts for classroom use on phones.
+The workflow is Draft → Pending → Confirmed or Declined → Completed or Cancelled, with revision after a decline. Conflict checks prevent incompatible changes. The interface is English-only, with responsive layouts for classroom use on smaller screens.
 
-The core request lifecycle, conflict rejection, and student privacy were checked through four demo sessions on the deployed HTTPS app. The public version 3 also passed a real controlled offline reload and an offline-save failure check, and a native browser completed a real version 1 → 3 update while preserving the student session and language. Responsive layouts were tested in desktop Chromium viewports; physical-phone installation is still unverified. No runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscription is claimed.
+Before the English-only update, the core request lifecycle, conflict rejection, and student privacy were checked through four demo sessions on the deployed HTTPS app. Historical public version 3 also passed a real controlled offline reload and an offline-save failure check, and a native browser completed a real version 1 → 3 update while preserving the student session and the then-selected language. Responsive layouts were tested in desktop Chromium viewports; physical-phone installation is still unverified. No runtime AI generation, QR sharing, parent access, Google sign-in, or calendar subscription is claimed.
 
 ## How we built it
 
@@ -63,7 +63,7 @@ Moving a class also creates scheduling risks. A valid request needs both a compl
 
 The project turns a school communication problem into a concrete workflow: complete the handover, get an explicit response, then show each person the information they need for the next lesson.
 
-On 2026-10-04, Round 5 verification passed 33 product tests, 85 independent reviewer tests, 9 dev-browser cases, and 6 built-Worker browser cases. The final canonical offline-page repair passed 34 product tests, all 6 built-browser cases, and 28 service-worker behavior checks. The same authored offline test then passed 1/1 against the actual public HTTPS app. Three additional probes upgraded genuine R02 databases, including two interrupted seed attempts, while preserving ordinary accounts and established records. GitHub CI passed for the earlier released version. The deployed HTTPS walkthrough completed conflict rejection, return and resubmission, confirmation, cancellation, student privacy and todo persistence, timetable restoration, and logout revocation across four demo sessions. These counts describe separate suites and checks, not a single combined total. The validation report below records their scope, the earlier failed hosting attempt, and the successful final hosted checks.
+On 2026-10-04, before the English-only update, Round 5 verification passed 33 product tests, 85 independent reviewer tests, 9 dev-browser cases, and 6 built-Worker browser cases. The final canonical offline-page repair passed 34 product tests, all 6 built-browser cases, and 28 service-worker behavior checks. The same authored offline test then passed 1/1 against the actual public HTTPS app. Three additional probes upgraded genuine R02 databases, including two interrupted seed attempts, while preserving ordinary accounts and established records. GitHub CI passed for the earlier released version. The deployed HTTPS walkthrough completed conflict rejection, return and resubmission, confirmation, cancellation, student privacy and todo persistence, timetable restoration, and logout revocation across four demo sessions. These counts describe separate suites and checks, not a single combined total. The validation report below records their scope, the earlier failed hosting attempt, and the successful final hosted checks.
 
 We do not yet have school pilot data or measured effects on teacher workload, missed lessons, or student outcomes. The current evidence should come from the working prototype and reproducible tests.
 
@@ -87,18 +87,18 @@ React 19 · TypeScript · Vinext · Cloudflare Workers · Cloudflare D1 / SQLite
 
 ## AI-use disclosure
 
-OpenAI Codex and Cursor assisted substantially with architecture, implementation, interface copy, synthetic demo scenarios, testing, debugging, official-rule research, and submission materials. The human participant supplied the school problem and the required handover-first workflow. AI-generated code and copy require review, and the participant must be able to explain the final product. This is development assistance; no model-inference feature is claimed as part of the core product. Prior pieces include the Vinext starter, Manrope, a Noto Sans TC interface subset, and Lucide. Full disclosure: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+OpenAI Codex and Cursor assisted substantially with architecture, implementation, interface copy, synthetic demo scenarios, testing, debugging, official-rule research, and submission materials. The human participant supplied the school problem and the required handover-first workflow. AI-generated code and copy require review, and the participant must be able to explain the final product. This is development assistance; no model-inference feature is claimed as part of the core product. Prior pieces include the Vinext starter, Manrope, and Lucide. Earlier versions used a Noto Sans TC subset, removed in the English-only update. Full disclosure: [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
 
 ## Links and team
 
 | Devpost field | Value to enter |
 | --- | --- |
-| Public demo | [Handover live app](https://handover-campus-2026.ziz81503.chatgpt.site); public access, version 3's hosted offline reload, and a real browser update were checked. |
+| Public demo | [Handover live app](https://handover-campus-2026.ziz81503.chatgpt.site); public access, historical version 3's hosted offline reload, and a real browser update were checked before the English-only update. Verify the current release before submitting. |
 | Source code | [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026) |
 | Demo video | `[CONFIRM: uploaded 2-minute walkthrough URL, if provided]` |
-| Screenshots | Eight synthetic-data captures are listed in [screenshots/README.md](screenshots/README.md); select the relevant files for upload. |
+| Screenshots | Eight actual English captures from 2026-10-05 are listed with measured dimensions in [screenshots/README.md](screenshots/README.md). Select the relevant files for upload. |
 | Team members | `[CONFIRM: participant name and Devpost profile; add all actual teammates]` |
-| Prior work / outside assets | Vinext starter, Manrope, Noto Sans TC subset, and Lucide; see [CREDITS.md](../CREDITS.md). `[CONFIRM: disclose any additional prior participant work or outside assets.]` |
+| Prior work / outside assets | Vinext starter, Manrope, and Lucide; see [CREDITS.md](../CREDITS.md). `[CONFIRM: disclose any additional prior participant work or outside assets.]` |
 | Validation report | [TEST_REPORT.md](../TEST_REPORT.md); [earlier successful GitHub CI](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969); [current workflow runs](https://github.com/zhuang768/handover-csc-2026/actions). |
 
 ## Known limitations to carry into the final submission

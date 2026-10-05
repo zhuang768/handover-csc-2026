@@ -1,108 +1,106 @@
-# R02 前端複驗：尚未通過
+# R02 frontend recheck: not yet accepted
 
-核對版本：產品 commit `73d32c1`；根 HEAD `1f1fe77`。暖白 × 墨綠／Manrope + Noto Sans TC 方向已核准，這份報告是交回實作的複驗，不把核准方向當成完成證據。
+Pinned product commit: `73d32c1`; root HEAD: `1f1fe77`. The warm-white/forest-green direction with Manrope + Noto Sans TC had been approved. Approval was not implementation or acceptance evidence. This is a historical review translated on 2026-10-05; its bilingual expectations were subsequently replaced by the user's English-only requirement.
 
-範圍：唯讀核對 `components/handover/app.tsx`、`handover.css`、`lib/i18n.ts`、`lib/client-api.ts`、共享型別、相關 service 呈現與教材／字體資產；依 `ACCEPTANCE.md`、`CURSOR_REPAIR_R02.md`、`CURSOR_VISUAL_R02B.md`。未操作 Cursor／瀏覽器、未啟動服務、未跑安裝／產品 build／DB 操作。下列「瀏覽器已確認」僅引用根代理本輪回報；其餘明確區分靜態事實與待驗風險。
+Scope: read-only review of app.tsx, handover.css, i18n.ts, client-api.ts, shared types, relevant service presentation, materials, and font assets against ACCEPTANCE.md, CURSOR_REPAIR_R02.md, and CURSOR_VISUAL_R02B.md. No Cursor/browser operation, server, install, build, or database access. “Browser confirmed” below attributes evidence to root; other findings distinguish source facts from unverified risks.
 
-## 已修項目，勿再沿用 R01 缺陷描述
+## Repairs confirmed in source; do not repeat stale R01 findings
 
-| R01／R02 要求 | 本輪靜態證據與判定 |
-| --- | --- |
-| 七欄完整性與送出 gate | `app.tsx:1454` 檢查六個文字欄位與有效教材；`1545` 安排完整性；`1851` 翻譯缺項；`1900` 未完整、checking、無有效報告或有衝突均 disabled。需實際負面流程復驗，但原「空表仍 enabled」程式問題已有修正。 |
-| 變更安排自動查衝堂、忽略過期結果 | `1554–1607` 使用安排 key、300ms debounce 與 generation；report 必須匹配目前 key。失敗重試仍缺，見 R02-F05。 |
-| create 成功、submit 失敗重試同一草稿 | `1613–1622` 保留新 ID，再次 save 使用 PATCH；原重複新建缺陷已有修正。 |
-| 來源班級、合理目標預設、Editor 重置 | `1689` source option 有班級；`1638–1646` 同步日期／節次／教室；`1394` Editor 有 request/seed key。Detail 輸入隔離仍缺，見 R02-F03。 |
-| 真 GET detail／跨週 | `157–189` GET detail 並轉 targetWeek；`1305–1307` 提供已 GET 的 focus fallback，404 有訊息、401 清 session。不是只 find 目前 workspace。通知與重載競爭仍待瀏覽器驗證。 |
-| 學生私密原因 | UI `1988–1992` 只向非學生呈現原因，`2023` 避免呈現 teacherNotes；service `1033`、`1052–1053`、`1065`、`1068–1069` 排除 notes／原因／timeline comment／補充。根代理已確認學生畫面不顯示私密原因；原始 JSON 的各端點安全驗證由根代理 API 報告判定。 |
-| 學生待辦保存 | API `2045` 呼叫真正 todo endpoint；根代理已確認勾選後 reload 保留。不能重列為假保存。 |
-| Admin 組合篩選 | `1289–1303` 同時套用 query/status/date/class/teacher，`1347–1377` 已提供班級與老師控件。本週調課數仍未展示。 |
-| 正常課堂 no-op、狀態圖示、接課清單 | `1038–1047` 正常課堂改為內容與有作用的老師建立入口；`989–1008` 狀態 icon；`911–924`、`1229–1250` 呈現待回應列表；`945–968` 學生 ThisWeek 摘要。 |
-| 已露出 P1/P2 的部分修正 | 高對比 selector `handover.css:94` 已匹配 true；admin nav `app.tsx:273` 不再被 simple 隱藏；view receipt `1945` 有真 POST；ICS `100` 帶選定 week、`1127` 有下載 catch；template `1657` 改成本地真檔案。仍有殘缺，見 R02-F08。 |
-| 核准視覺方向 | CSS tokens／font-face／紙面與主綠已落地；teacher-board 桌機主週表＋側清單，學生下一堂與行政 ledger 已有結構。原藍色按鈕文字 specificity 問題不再原樣存在。所有模式／狀態對比與實際字型仍不能宣稱全過。 |
+| Requirement                           | R02 source evidence                                                                                                                                                                                                                                  |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Seven-field completeness/submission   | app 1454 validates six text fields and materials; 1545 arrangement completeness; 1851 localized missing list; 1900 disables for incomplete/checking/invalid report/conflict. Negative runtime cases still required.                                  |
+| Automatic conflicts/stale result      | 1554–1607 uses arrangement key, 300ms debounce, generation, and matching report key. Failure retry still missing, F05.                                                                                                                               |
+| Retry saved draft after failed submit | 1613–1622 retains created ID and retries via PATCH; duplicate-create issue repaired.                                                                                                                                                                 |
+| Source class/defaults/editor reset    | 1689 includes class; 1638–1646 synchronizes target date/period/room; 1394 keys Editor. Detail isolation remains F03.                                                                                                                                 |
+| Real cross-week detail GET            | 157–189 fetches detail and target week; 1305–1307 focused-detail fallback; 404 message, 401 clears session. Notification/reload race pending runtime.                                                                                                |
+| Student private reason                | UI 1988–1992 hides reason from students; 2023 hides teacherNotes. Service 1033/1052–1053/1065/1068–1069 excludes notes/reason/comments/supplements. Root confirmed no private reason in student UI; raw endpoint privacy belongs to root API report. |
+| Persistent student todo               | app 2045 uses real todo endpoint. Root confirmed reload persistence; do not report fake saving.                                                                                                                                                      |
+| Admin combined filters                | 1289–1303 combines query/status/date/class/teacher; 1347–1377 provides controls. Weekly statistic remains missing.                                                                                                                                   |
+| Normal lessons/icons/incoming         | 1038–1047 replaces no-op lessons with content/teacher create; 989–1008 state icons; 911–924/1229–1250 incoming list; 945–968 student This Week summary.                                                                                              |
+| Visible P1/P2 improvements            | CSS94 contrast matches true; app273 admin nav unaffected by simple;1945 view POST;100/1127 selected-week ICS/error catch;1657 real local template material. Remaining F08.                                                                           |
+| Approved visuals                      | Tokens/fonts/paper/green implemented; desktop teacher board, student next lesson, admin ledger exist. Former blue specificity issue no longer applies unchanged. All-state contrast/font coverage not declared passed.                               |
 
-## 剩餘確定缺陷與最小驗收
+## Remaining defects and minimal acceptance
 
-### R02-F01 — 高：繁中段落寬度套到所有 layout，桌機縮在左側（瀏覽器已確認）
+### R02-F01 — High: inherited Traditional Chinese selector narrows desktop layout (root browser confirmed)
 
-位置：[handover.css:148](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:148)。`.handover-root :lang(zh)` 匹配繼承繁中語言的所有子元素，包含 `.shell`、`.main`，全部被 `max-width:38em` 約束。根代理在 1440px 實測：EN shell/main 為 1440/1220px，繁中成為 608/388px。
+[handover.css:148](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:148): `.handover-root :lang(zh)` matches every descendant inheriting the language, including shell/main, imposing max-width:38em. Root measured at 1440px: English shell/main 1440/1220px; Traditional Chinese 608/388px.
 
-最小修正／驗收：把行長限制縮到段落或明確文字容器，保留 layout 的完整可用寬度；三角色與登入在 390/768/1440px 切 EN/繁中，量測 shell/main、不產生整頁橫向溢出，長繁中文字仍合理換行。
+Limit line length to paragraphs or explicit text containers. Historical recheck: login and three roles at390/768/1440, both languages, full shell/main width, no page overflow, sensible long-text wrapping.
 
-### R02-F02 — 高：學生下一堂混入不同課堂的教師與準備提醒（瀏覽器已確認）
+### R02-F02 — High: next lesson mixes a different request's teachers/reminder (root browser confirmed)
 
-位置：[app.tsx:842](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:842)。`next` 是第一筆 Confirmed request（842–845）；`nextLesson` 則獨立排序未來 lessons（846–850）。883–889 沒有比對 lessonId/requestId，直接把 `next` 的老師、教室與提醒放在 `nextLesson` 下。根代理看到 Monday 2026-10-05 P1 Math/Maya，卻混入 Friday 2026-10-09 P4 的 Maya→Jonah 提醒；Open handover 也開 Friday 的資料。
+[app.tsx:842](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:842): `next` is the first Confirmed request,842–845; `nextLesson` is independently sorted future lessons,846–850. Lines883–889 attach next's teacher/room/reminder without matching lessonId/requestId. Root saw Monday2026-10-05 P1 Math/Maya with Friday2026-10-09 P4 Maya→Jonah details; Open handover opened Friday.
 
-最小修正／驗收：下一堂資訊只能關聯該 lesson 的交接；沒有異動時不顯示另一堂的異動資訊。若保留其他近期交接，獨立標出實際日期／節次。以一堂正常近期課＋較晚 confirmed 交接重現，核對顯示、按鈕目的地與 API ID 完全一致。
+Only associate the next lesson's request. Separately label other upcoming handovers with their real date/period. Reproduce normal early lesson plus later confirmed request; text, destination, and API ID must agree.
 
-### R02-F03 — 高：切不同詳情會沿用上一筆私密留言／補充
+### R02-F03 — High: another detail can inherit private comment/supplement
 
-位置：[app.tsx:1440](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1440)。Detail 沒有 request key；`comment`、`supplement`、`error` 在1937–1939只初始化一次；request 變更的 effect（1940–1946）只 focus／view。切清單另筆 request 時同一 Detail component 存活，2105／2117／2145把留下的輸入送往新 request。Editor key 已修，不能把它推廣成 Detail 已修。
+[app.tsx:1440](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1440): Detail lacks a request key. comment/supplement/error initialize only once,1937–1939; request effect1940–1946 only focuses/records view. Handlers2105/2117/2145 can send previous input to the new request. Editor's repaired key does not repair Detail.
 
-最小修正／驗收：依 request ID 隔離／重置詳情輸入和 error。老師 A 詳情輸入獨特 PRIVATE 標記但不送出，切 B，B 欄位與送出的 payload 不含 A 內容；再切回 A，依明確的草稿策略處理。
+Key/isolate/reset detail input and error per request. Enter a unique PRIVATE marker on A without sending, open B, and ensure B fields/payload exclude A. Returning to A must follow an explicit draft policy.
 
-### R02-F04 — 高：多個 API 操作仍無 catch／busy／重試，401 與成功回饋也不一致
+### R02-F04 — High: API errors/busy/retry/session/success gaps remain
 
-代表位置：[app.tsx:2307](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2307)。API wrapper 只 throw ApiError（`lib/client-api.ts:29`），未集中處理 session；下列 handler 本身也未處理。
+The wrapper only throws ApiError, client-api29; it does not centrally expire sessions. Representative handler: [app.tsx:2307](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2307).
 
-| 路徑 | 現有程式事實 |
-| --- | --- |
-| 登出 | `315–324` await 沒 catch／busy；失敗留原登入畫面且沒有錯誤。 |
-| 全部通知已讀、單筆通知 | `2220–2223` 沒 catch／busy；單筆 `2235` 把錯誤送入綠色成功 notice（364–367），finally 又開詳情／重載，錯誤會被清掉。 |
-| 個資、示範重設 | `2307–2324`、`2389–2393` 沒 catch／busy；重設雖有 RESET DEMO gate，但請求期間仍可重按。 |
-| 人員／Audit 載入 | `2413–2416`、`2495–2498` 沒 catch、沒有 loading/retry；載入失敗維持空資料，Audit 顯示 noActivity。 |
-| 啟停使用者 | `2459–2469` mutation 與第二次 GET 都沒 catch／busy。 |
-| 詳情回覆／補充／完成／取消／todo | `1947–1960` 有局部 catch，沒有 busy 鎖；`2099`、`2111`、`2140`、`2156`、`2171` 未 disabled。401 只顯錯，不會像 load/openRequest 清 session。view `1945` fire-and-forget 無 catch。 |
-| Impact | `2533–2550` 有 catch，但沒有 retry入口，且所有 HTTP error 都稱 networkError、401不清session；同一component收到新week時也沒有重置failed。 |
-| 初次 workspace 載入失敗 | `245–262` 在 workspace 為 null 時直接 return AuthScreen，未把 load 所設 error 傳入，登入成功後首個 workspace 500 的全域錯誤／retry不會呈現。 |
-| 成功回饋 | refresh `234–236` 立即 `setMessage("")`；save `1623–1625`、act `1951–1952`、通知／profile／reset 都先設成功再呼叫該 refresh，同批回饋被清除。 |
+| Path                                   | Source fact                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Logout                                 | 315–324 await without catch/busy; failure has no message.                                                                                                     |
+| Notification read                      | 2220–2223 no catch/busy; single2235 sends error to green success notice364–367, then finally opens/reloads and clears it.                                     |
+| Profile/demo reset                     | 2307–2324/2389–2393 no catch/busy; RESET DEMO gate exists but repeated clicks remain possible.                                                                |
+| Users/Audit reads                      | 2413–2416/2495–2498 no catch/loading/retry; failed Audit appears noActivity.                                                                                  |
+| User toggle                            | 2459–2469 mutation and refresh GET both lack catch/busy.                                                                                                      |
+| Detail response/supplement/status/todo | 1947–1960 local catch but no busy lock;2099/2111/2140/2156/2171 not disabled.401 shows error without clearing session.1945 view fire-and-forget has no catch. |
+| Impact                                 | 2533–2550 catch but no retry; all HTTP errors labeled networkError;401 session retained; new week does not reset failed.                                      |
+| First workspace failure                | 245–262 returns AuthScreen with no load error when workspace null.                                                                                            |
+| Success feedback                       | 234–236 refresh clears message immediately; mutations1623–1625/1951–1952/notification/profile/reset set success before refresh.                               |
 
-最小驗收：每個已露出 API 操作各做一次500／offline、401與成功；失敗可見且可重試，保存合理未存內容、401回登入；阻止忙碌期間重複 mutation；成功訊息可見／可由 screen reader 收到，console 無 unhandled rejection。Profile／reset／users／Audit不可略過。
+Recheck every visible action with500/offline,401,and success. Require visible recoverable errors, retained reasonable input,401 login, duplicate-write protection, audible/visible success, and no unhandled rejection. Include profile/reset/users/Audit.
 
-### R02-F05 — 中：衝堂請求失敗後，當前安排沒有可操作的重試
+### R02-F05 — Medium: failed conflict check has no same-arrangement retry
 
-位置：[app.tsx:1586](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1586)。catch 把 failedKey 設為目前 key，checking 變 false，但 report 仍 null；送出被 `1905 !report` 鎖住。effect 只隨欄位／語言等依賴變化，畫面沒有同一安排的 Retry control。catch 不區分401/403/validation，而且成功重查未清除先前 error。
+[app.tsx:1586](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1586): catch sets failedKey=current key, checking false, report null;1905 disables submission without report. The effect reruns only on dependencies; no explicit retry. Catch conflates401/403/validation, and successful recheck does not clear old error.
 
-最小驗收：完整安排首次 conflicts500後，直接按明確重試、保持原欄位，後續200恢復正確可送狀態且舊錯誤消失；401回登入、403顯權限錯誤；快速變更欄位仍忽略舊結果。
+After first conflicts500, retry without changing fields; later200 restores valid submission and clears old error.401 logs out,403 shows permission error, stale results remain ignored.
 
-### R02-F06 — 中：通知／風險／時間軸／Audit系統字串與時間未完整雙語，未讀提示也未補
+### R02-F06 — Medium: generated text/times not fully bilingual; per-notification unread marker missing
 
-位置：[app.tsx:2080](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2080)。timeline直接呈現 action＋ISO at；通知直接呈現 title／createdAt（2242–2244）；admin risk直接呈現英文 server message（980；service1907/1914）；Audit直接呈現 action/detail/at（2508–2510）。API fields 在1678直接 join；取消固定寫入英文系統 comment（2178），availableSlots 1881 固定用P。通知 item 沒有未讀文字／dot／aria標記，只有已讀後的 read suffix；nav 未讀數不能取代每筆狀態。
+[app.tsx:2080](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2080) renders timeline action and ISO time directly. Notifications2242–2244 render title/createdAt; risk980 and service1907/1914 render English; Audit2508–2510 renders action/detail/time. Fields1678 join raw keys; cancellation2178 stores a fixed English comment; availableSlots1881 hardcodes P. Per-item unread text/dot/ARIA is missing; nav count is not its replacement.
 
-根代理已實際看到繁中 timeline 的 UTC ISO、created/submitted/confirmed。Seed 若視為示範 actor 名稱可保留英文，不把老師自寫內容／姓名列為翻譯缺陷；系統 action 和格式仍需翻譯。
+Root observed UTC ISO and created/submitted/confirmed in Traditional Chinese. Seed actor names and teacher-authored content may stay English; system actions/formats needed localization under historical requirements. Recheck all transitions, notifications, risks, Audit, missing fields, readable local time, accessible read/unread state, and student privacy. This historical bilingual gate is now superseded.
 
-最小驗收：EN/繁中檢查 created/submitted/confirmed/declined/completed/cancelled、提醒與風險、Audit及缺欄錯誤；採易讀本地時區日期。每筆通知的已讀／未讀可視與可存取，切語言後系統文案同步，私密留言不混入學生通知。
+### R02-F07 — Medium: weekly-change statistic not displayed
 
-### R02-F07 — 中：本週調課統計仍未展示
+[app.tsx:893](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:893) ledger only uses lessons.length/pending/declined/confirmed,893–909. No app reference to stats.weekly despite shared type110 and service1887–1892.
 
-位置：[app.tsx:893](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:893)。ledger只呈現 lessons.length、pending、declined、confirmed（893–909）。全app未引用 `stats.weekly`；共享型別110與service1887–1892仍提供真本週數，R02明確要求展示。
+Show explicit weekly changes and selected week using actual stats.weekly; verify against API across week navigation. Lesson count is not change count.
 
-最小驗收：Admin 顯示明確「本週調課」及目前週次，數值取正確stats.weekly，跨週前後與真正API結果一致；不要把本週課堂數當調課數。
+### R02-F08 — Medium: visible simple/template promises incomplete; seeded material still placeholder
 
-### R02-F08 — 中：已露出簡易模式／範本仍未符合承諾，seed教材仍placeholder
+[app.tsx:2362](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2362) saves simple mode but root282 is its only use; CSS/student render does not react. The old admin-nav hiding bug is repaired, not repeated.
 
-位置：[app.tsx:2362](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:2362)。simple checkbox真正保存偏好，但只寫 root data-simple（282），CSS與student render都沒有使用，切換不改任何內容。原「simple隱藏admin導航」已修，不重列。
+Template1648–1664 substitutes subject into otherwise identical English content without language/subject distinction. Its local `public/worksheets/class-practice.txt` exists; do not call that template URL fake. Separately [service.ts:570](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:570) still seeds `https://example.org/worksheet`, observed by root.
 
-template（1648–1664）只是替換科目名稱的同一段英文，不看 language／科目差異；現有本地教材 `public/worksheets/class-practice.txt` 確實存在，不能再說範本連結是假example.org。另一筆seed教材則仍在 [service.ts:570](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:570) 寫 `https://example.org/worksheet`，根代理也在實際畫面看到該連結。
+Implement real promised differences or remove entries. Every demo material must open real content. Replacing a seed stub must repair existing demo records, not only the generator.
 
-最小驗收：簡易模式／科目範本做到明確的真差異或移除入口；所有demo可見教材指向實際可讀教材。移除／替換seed stub時要處理既有demo資料，不能只改範本產生器。
+### R02-F09 — Medium: dark control static color pairs below threshold; computed recheck required
 
-### R02-F09 — 中：深色已露出按鈕的靜態顏色配對低於門檻，需computed複驗
+[handover.css:272](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:272): dark button text#10221c on active green-2#143f34,26/278–279, gives≈1.41:1. Warning299–300 retains white on dark danger-fg#ffb4a8,82,≈1.70:1; dark+contrast#ffd0c8,120,≈1.39:1. These are source pairs/formula estimates, not measured browser or whole-page WCAG verdicts.
 
-位置：[handover.css:272](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:272)。dark .btn 文字`#10221c`，active沿用green-2 `#143f34`（26、278–279），簡單固色比約1.41:1。warn規則299–300保留白字，dark danger-fg82為`#ffb4a8`，比約1.70:1；dark＋高對比120為`#ffd0c8`，白字約1.39:1。這是明確CSS配對與公式計算，尚未宣稱瀏覽器實際computed結果／整頁WCAG判定。
+Check light/dark/contrast combinations and normal/hover/active/focus/error computed colors. Enabled ordinary text≥4.5:1; necessary nontext/focus≥3:1. Complex backgrounds require manual assessment. Disabled text is exempt from that WCAG failure, while project44px touch gate still applies.
 
-最小驗收：light/dark/contrast組合各檢查normal/hover/active/focus/error按鈕computed foreground/background，enabled一般文字≥4.5:1，focus／必要非文字控件≥3:1；gradient、opacity或複合背景人工判定。Disabled文字不當WCAG失敗，44px專案觸控gate仍適用。
+## Pending root browser/DOM verification
 
-## 根代理待完成的瀏覽器／DOM驗證
+- Cross-week race: openRequest169–172 loads new week; notification finally2237–2238 also reloads old render's week. load192–221 lacks generation/AbortController. Delay/reverse old/new workspace responses; verify week/detail alignment. Source risk, not claimed reproduction.
+  -44px/focus: checkbox253–258≈18px; label231–236 lacks min-height. Measure actual clickable label fragments, not blank row area. Prioritize Profile/todo, sticky-nav focus visibility, sensible detail return.
+- Login/three roles at390/768/1440 in historical EN/Traditional Chinese: mobile sidebar wraps all nav323–339 alongside bottom-nav485–503. Verify ordering/long form/text/keyboard. Editor1667 is inline, not a tested modal.
+- Fonts/license/fallback: CSS1–17 local woff2/swap; notices/CREDITS3–6 exist. Noto small subset needs document.fonts and real glyph/long-name/fallback verification. Family name alone does not prove all glyph coverage; “sc” license filename alone does not prove incorrect glyphs.
+- Motion/data: CSS589–602 transitions only for no-preference; measure reduced motion/slow network. Real timetable/notification/state/view/todo data; weekend empty/cancelled notification positive/negative cases.
+- Review-owned dom-visual-probe.js is read-only diagnostics: short labels, rects, solid-color contrast candidates, overflow/fonts/focus, manual flags for uncertain backgrounds. It is not product E2E or AA proof.
 
-- **跨週競爭風險**：openRequest169–172發新週load；通知finally2237–2238同時發onReload（舊render閉包的week），load192–221沒有generation／AbortController。需延遲並逆序返回舊／新workspace，確認週次、畫面與GETdetail不混用；目前是程式風險，沒有宣稱已重現。
-- **44px與focus**：checkbox本體253–258約18px，label231–236沒有min-height；必須量測真正可點label各fragment，不把整列空白假算觸控面積。Profile與學生todo為優先；keyboard focus不能被sticky bottom-nav遮住，切detail後返回需有合理焦點。
-- **390/768/1440 三角色／登入 × EN/繁中**：Sidebar手機仍wrap全部nav（323–339）並另有bottom-nav（485–503），需實際核對內容順序／表單可讀性／長繁中／鍵盤；不憑靜態寬度宣稱手機通過。Editor是inline form（1667），不假稱已測modal。
-- **字型／授權／fallback**：CSS1–17自帶woff2與swap；Manrope/Noto notices及CREDITS3–6存在。Noto為小subset，需DOM fonts狀態與實際繁中字形／長姓名／子集外字的fallback驗證，不靠font-family字串宣稱每個字都由Noto Sans TC渲染。未驗證完整CJK coverage，不能只因notice檔名含sc便宣稱字形錯誤。
-- **動態與真資料**：CSS589–602只在no-preference啟用transition／位移，需reduced-motion與慢網路實測；保留真課表、通知、狀態、回執及待辦資料，週末empty與取消通知需要正反流程。
-- **工具**：review-owned `dom-visual-probe.js`為唯讀診斷函式，可嵌入CUA evaluate；會輸出短label、可見控制rect、solid色比候選、overflow、fonts與focus資訊，疑難背景標manual，不等同產品E2E或全頁AA證明。
+## Verification and historical verdict
 
-## 本輪完成的驗證
+Read-only requirement/source/handler/API comparisons, static selector/color/touch checks, material/notices existence. The owned DOM probe passed syntax plus10 isolated mock checks. No product lint/types/tests/build rerun, and other root results were not promoted to full frontend acceptance. Only this report was created.
 
-唯讀程式／需求逐項比對、可見handler和API呼叫檢視、44px／色彩／語言selector靜態檢查、教材資產存在與字體notice檢查；自己的DOM probe已做syntax與10項隔離mock檢查。沒有重跑產品lint/types/tests/build，沒有將根代理其他測試結果推廣為前端全通。只新增本report，不修改產品檔案。
-
-結論：目前仍有已知未修P0互動與核准視覺要求缺陷，不能標前端驗收完成。優先F01/F02/F03/F04，接續F05/F06/F07及已露出入口／模式；修正後依VISUAL_ACCEPTANCE與實際API／瀏覽器結果復驗。
+Known P0 and approved-visual defects remained. Priorities: F01–F04, thenF05–F07 and visible incomplete features/modes. Recheck using VISUAL_ACCEPTANCE and actual API/browser evidence after repairs.

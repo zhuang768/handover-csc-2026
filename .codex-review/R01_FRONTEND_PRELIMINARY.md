@@ -1,182 +1,162 @@
-# R01 前端需求審查：初步，完成後復驗
+# R01 frontend requirements review: preliminary, recheck after completion
 
-日期：2026-10-03（台灣時間）。Cursor 已標示 ready_for_review 並停止產品編輯。本文件仍是初步靜態審查，等待根代理的瀏覽器及 API 獨立復驗，不是最終驗收報告。
+Review date: 2026-10-03, Taiwan time. Cursor had marked ready_for_review and stopped product edits. This is the historical preliminary static review, pending the root agent's independent browser and API verification. It is not a final acceptance report. English translation on 2026-10-05 preserves the pinned evidence and findings. Historical bilingual requirements were later superseded by the user's English-only instruction.
 
-穩定來源復核：根工作目錄 HEAD `111f16a17381679aba20499807b9f6cd7b306cfc`；下列三個前端 SHA-256 與施工中快照完全一致，已重新比對關鍵行。讀取 `.codex-review/ACCEPTANCE.md` 與原始附件要求後，僅將明確 P0 門檻列為阻擋；可見 P1/P2 問題另列為移除或修正入口。
+Pinned root HEAD: `111f16a17381679aba20499807b9f6cd7b306cfc`. The three frontend SHA-256 values below matched the earlier construction snapshot; relevant lines were rechecked. Explicit P0 requirements from `.codex-review/ACCEPTANCE.md` and the original attachment were treated as blockers. Visible P1/P2 entry points were checked for real behavior without requiring every unclaimed P1/P2 feature.
 
-本輪未啟動伺服器、未安裝、未建置、未操作 Cursor、未讀寫本機 DB、未修改產品程式碼。根代理回報的 build exit 0 不代表下列互動已通過。server 的 GET mutation 問題由根代理另案追蹤，此處不重複列為前端發現。
+No server, installation, build, Cursor operation, local database access, or product edit was performed in this review. The root agent's build exit 0 did not prove the interactions below. The server GET mutation issue was tracked separately by root.
 
-審查基準：使用者附件的 P0 1–9、docs/API_CONTRACT.md、shared/types.ts、目前 components/handover/app.tsx 與 handover.css、lib/client-api.ts 與 lib/i18n.ts。已顯示的 P1/P2 入口也檢查是否真正有作用，但不要求尚未宣稱的 P1/P2 現在全部實作。
+Sources: original P0 items 1–9, `docs/API_CONTRACT.md`, `shared/types.ts`, `components/handover/app.tsx`, `handover.css`, `lib/client-api.ts`, and `lib/i18n.ts`.
 
-前端來源快照 SHA-256：
+Snapshot SHA-256:
 
-- app.tsx（2079 行）：0554a09e2cde9a2c8332769a00e8c41050d9b2fc800425579c7ed907e1f3ca27
-- handover.css（372 行）：477102eb5516024ff26d0b45d7333090cc7b6db1443572fdef6e64ca9023d1ef
-- lib/i18n.ts（577 行）：ca3bcc55eaad3f84c2666e9347f687fa2ba6fab9a9ad2b9a9cf5a30531217874
+- app.tsx, 2079 lines: `0554a09e2cde9a2c8332769a00e8c41050d9b2fc800425579c7ed907e1f3ca27`
+- handover.css, 372 lines: `477102eb5516024ff26d0b45d7333090cc7b6db1443572fdef6e64ca9023d1ef`
+- lib/i18n.ts, 577 lines: `ca3bcc55eaad3f84c2666e9347f687fa2ba6fab9a9ad2b9a9cf5a30531217874`
 
-下文 app 行號均指 `/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx`。Cursor 後續更新可能使行號改變，完成後須核對最新檔案。
+All app line references below identify the pinned `handover/components/handover/app.tsx`. Later revisions may change these line numbers.
 
-## 初步發現
+## Findings
 
-### R01-01 [HAND-01、UX-04] 阻擋 P0：送出交接未實作必填 gate
+### R01-01 [HAND-01, UX-04] P0 blocker: required handover submission gate missing
 
-[app.tsx:1436](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1436) 的送出是永遠可點的 `type="button"`，沒有 disabled、完整性計算或送出前缺項清單；六個交接 textarea／教材 input 也未提供 required。`missing` 只在 API 失敗後由 caught.fields 設定（1192–1196），1230 前的錯誤區直接印原始 key。
+At [app.tsx:1436](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1436), submit was always enabled `type="button"`, with no completeness calculation, disabled gate, or missing-field list before submission. The six text fields/material inputs lacked required attributes. `missing` was set only from caught API fields, lines 1192–1196, and raw keys were rendered before line 1230. `save(true)` bypassed native date/period validation.
 
-結果：空表單仍能發出 create＋submit，與「欄位未齊時不可送出且顯示缺項」不符。後端拒絕不能取代此 P0 UI 要求。save(true) 亦繞過日期／節次等原生 form validation。
+An empty form could create a request and attempt submit. Server rejection did not satisfy the explicit UI requirement. Recheck each of seven fields, whitespace-only values, the sole material, and missing material title/URL: submit must stay disabled with immediate missing-field feedback, while incomplete handover drafts remain saveable.
 
-復驗：逐一清空七欄、改成純空格、清空唯一教材、移除標題／URL，送出保持停用且缺項文字即時更新；仍可保存未完成的交接草稿。
+### R01-02 [REQ-02, UX-04] P0 blocker: conflict checks were manual and stale
 
-### R01-02 [REQ-02、UX-04] 阻擋 P0：衝堂只手動檢查，結果會過期
+At [app.tsx:1174](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1174), `check()` was triggered only by the button at 1398. Source, kind, target date/period/room, and recipient changes did not recheck or clear `report`. There was no loading, catch, cancellation, or stale-response guard. The button permanently said “Checking…”. Available slots/candidates were plain text; lack of click-to-select was not counted as an independent P0 blocker.
 
-[app.tsx:1174](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1174) 的 check() 只由1398的按鈕觸發，未監聽來源、kind、targetDate、targetPeriod、targetRoom、recipientId。修改欄位後 report 不清空；無 loading、catch、取消前一次查詢或阻止舊回應覆蓋新結果。按鈕文字永遠是「Checking…／檢查可用時段…」，不代表真的正在查。
+Recheck automatic checks after changes, disabled submission while checking, recoverable failure, and delayed out-of-order responses. Only the latest arrangement may determine availability.
 
-結果：不符合即時衝堂檢查；上一個時段的「可用」可能留在新時段。availableSlots／candidates 只是文字，未提供快速選擇操作；列出空堂本身已部分實作，不將「不能點」單獨算 P0 阻擋。
+### R01-03 [NOTIF-02, UX-05] P0 blocker: opening notifications depended on the current week's requests
 
-復驗：改目標即重查、等待期間不可送、錯誤可重試；人工延遲前一次 response，最新選擇才可決定結果。
+At [app.tsx:999](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:999), detail was selected only through `workspace.requests.find(selected)`. The UI never fetched GET `/api/requests/:id`. Notification lines 1745–1748 only selected/opened the ID. Server notifications were not week-limited, `service.ts:1626`, while student requests were, 1573–1584.
 
-### R01-03 [NOTIF-02、UX-05] 阻擋 P0：通知／交接開啟依賴當週資料，缺少真正 detail fetch
+Older-week, cancelled, or otherwise excluded IDs could become read and navigate to a list without detail or an explicit unavailable explanation. Detail appeared after the entire list, line 1096, with no focus or scroll movement. Recheck confirmed/cancelled requests in another week: load real detail or a clear permission/cancellation error and move focus to the result.
 
-[app.tsx:999](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:999) 只以 workspace.requests.find(selected) 決定詳情，整個 UI 沒呼叫 GET `/api/requests/:id`。通知1745–1748只是 setSelected/onOpen；server 的通知查詢不限制週次（server/service.ts:1626），但學生 requests 限當週（1573–1584）。
+### R01-04 [ACL-02, STUD-01] P0 privacy blocker: students received private absence reasons
 
-結果：較舊週的通知、已取消而退出學生清單的通知、被週次排除的 request ID 可以標已讀並切到清單，卻沒有對應詳情／明確失效說明。開啟詳情還排在所有清單之後（1096），沒有焦點或捲動，手機可能看不出有開啟。
+At [app.tsx:1505](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1505), `request.reason` was rendered without role filtering. Server `presentRequest` removed teacherNotes, 1047, timeline comments, 1079, and supplements, 1082, but returned reasonCategory/reason, 1066–1067.
 
-復驗：在另一週建立並確認／取消，再從通知點擊；應載入對應詳情或清楚的無權／已取消訊息，並將焦點移到詳情。
+Private medical/leave text could reach both student raw JSON and UI. Recheck distinct PRIVATE markers in reason and notes across student workspace, detail, and notifications, including raw payloads. Teachers must retain authorized access. Also check declined comments and supplements.
 
-### R01-04 [ACL-02、STUD-01] 阻擋 P0／隱私：學生仍看到私人請假原因
+### R01-05 [ADMIN-01] P0 blocker: admin request filters and weekly-change statistic missing
 
-[app.tsx:1505](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1505) 無角色判斷顯示 request.reason。靜態讀取 server/service.ts 的 presentRequest：teacherNotes 被刪（1047）、學生 timeline.comment 被清（1079）、supplements 被剔除（1082），但 reasonCategory／reason 仍直接回傳（1066–1067）。
+At [app.tsx:987](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:987), requests had only query/status/date filters. Timetable class/teacher controls changed workspace lessons; service request queries, 1573–1584, did not apply classFilter/teacherFilter. Overview 733–749 showed lessons.length, pending, declined, and confirmed, but not `workspace.stats.weekly`.
 
-結果：原教師若在就醫／請假原因輸入私人資訊，學生 raw JSON 與畫面都收到。使用者要求學生看到教材／作業小考／提醒等學生可見部分，不能把完整教師原因視為學生公開內容。
+Recheck combined date/class/teacher/status/search filters and a true weekly-change count. Other-week pending/declined work may remain visible but must not be miscounted as this week's changes.
 
-復驗：教師原因與 notes 放獨特 PRIVATE 標記；學生 workspace、detail、notification 原始回應及畫面不得有該標記，教師仍可讀。亦複驗退回留言與補充的安全過濾。
+### R01-06 [AUTH-01, REQ-03, UX-04] P0 quality blocker: API failures and busy states missing
 
-### R01-05 [ADMIN-01] 阻擋 P0：教務處交接清單缺少班級／教師篩選與本週異動數
+No try/catch existed for notification read, 1732/1745, profile, 1816, demo reset, 1898, users toggle, 1968, logout, 250, and conflict checks, 1174. Users/Audit/Impact reads, 1922/2004/2040, used only `then`. Demo auth buttons, 655–679, Editor save, and Detail act lacked busy gates.
 
-[app.tsx:987](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:987) 只有 query／status／date。Requests 的 filter 控制只有搜尋、狀態、日期，未有班級、教師選項。Timetable 的班級／教師選項只改 workspace lessons；server requests 查詢沒有套 classFilter／teacherFilter（server/service.ts:1573–1584），所以不能當作交接列表篩選。
+401/403/422/500 or offline could yield only console errors or permanent loading. Repeated clicks could issue simultaneous mutations. Create followed by failed submit, 1181–1188, lost the saved ID; retry could create another draft. Mutations set success before `onReload=refresh`, which immediately cleared it, 174–176. Top-level load did not clear session on 401, 152; first workspace failure rendered AuthScreen without top-level error, 185.
 
-Overview 733–749 顯示 lessons.length、pending、declined、confirmed，沒有 workspace.stats.weekly 對應「本週調課數」。
+Recheck each visible API action under 401/403/409/422/500/offline and success: visible recoverable errors, retained input, no false success, one mutation per action, retry using the saved draft, correct session expiry, and visible success feedback.
 
-復驗：日期＋班級＋教師＋狀態＋搜尋可組合，清單與本週統計一致；待確認／退回可包含其他週的課務，但不能直接混算本週異動。
+### R01-07 [UX-01] Historical bilingual P0 blocker: generated errors/events remained English
 
-### R01-06 [AUTH-01、REQ-03、UX-04] 阻擋 P0 品質：大量 API 操作沒有錯誤／忙碌處理
+At [app.tsx:1195](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1195) and 1474, `errorText("en", code)` was fixed to English. Raw API field keys, 1226, timeline.action, 1592, notification.title, 1751, risk.message, 778, and audit.action, 2017, were rendered. Examples included service-generated “Class change tomorrow”, 1536, and “is still unconfirmed”, 1654. Language control labels, 246/514, were hardcoded. document.lang switching already existed, 75/82, so it was not reported as missing.
 
-[app.tsx:1732](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1732) 通知標已讀、1745點通知、1816存個資、1898重設demo、1968啟停用、250登出與1174衝堂都沒有 try/catch。Users1922／Audit2004／Impact2040 的讀取只有 then，失敗會無提示或永久loading。auth/demo 655–679 未 disabled={busy}，Editor save 與 Detail act 也無 busy gate。
+The historical recheck required localized system text, field names, errors, and ARIA labels when switching to Traditional Chinese; names, subjects, and user-authored seed materials could remain English. This expectation is historical, not the current English-only policy.
 
-結果：401／403／422／500 或離線可能只在 console 出現、沒有可重試提示；快速重複點擊會同時變更資料。原教師 new request 的 create 成功後 submit 失敗（1181–1188）未留 saved request ID，再按會新建另一份草稿。
+### R01-08 [UX-03] P0 contrast risk: higher-specificity rule overrode primary button text
 
-成功提示也會立即被 onReload=refresh 清掉（174–176），因為各 mutation 先 onMessage 再 onReload；React 批次更新可能讓成功訊息根本不顯示。
+[handover.css:62](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:62), `.handover-root button { color: inherit }`, outweighed `.btn { color: #fff }`, 150–155. Light primary buttons were expected to inherit ink `#122033` over cobalt `#1d4ed8`; demo secondary used `#16345c`.
 
-另外頂層 load 的401不清 session（152），初次workspace失敗仍走 AuthScreen且不顯示頂層error（185）。新登入成功但workspace失敗時看起來像登入沒成功。
+Static WCAG calculations were approximately 2.45:1 and 1.31:1, below 4.5:1 for ordinary text. No browser computed styles were measured, so these estimates alone did not prove actual rendered results or whole-page compliance. Recheck computed colors, focus, disabled states, and dark badges at 390/768/1440.
 
-復驗：各控制攔截401／403／409／422／500與離線，UI提供正確訊息、保存輸入、不假稱成功、可重試；一次操作只有一次mutation，submit失敗後重試沿用已保存草稿。
+### R01-09 [REQ-01, UX-04] P0 workflow risk: source identification and editor/detail isolation
 
-### R01-07 [UX-01] 阻擋 P0 雙語：錯誤與系統事件仍直接顯示英文
+At [app.tsx:1233](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1233), changing lessonId left target date/period/room at the old initial values. Source options, 1237, omitted className; teachers teaching the same subject in multiple classes could not distinguish them. Fallback choices, 1127, allowed any lesson with originalDate rather than only editable sources.
 
-[app.tsx:1195](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1195) 與1474固定 errorText("en", code)；1226直接印 fields key；1592直接印 timeline.action；1751直接印 notification.title；778直接印risk.message；2017直接印audit.action。這些多為系統產生的英文，不是允許保留英文的姓名／科目／教材seed內容。
+Editor lacked a key, 1054, and state did not reset when `existing` changed; New handover could reuse an old request's content. Detail also lacked a key and could carry comments/supplements into another request. Recheck clear date/period/class labels, synchronized source defaults, edit-to-new reset, and A-to-B detail isolation of private text.
 
-例：server 1536固定 `Class change tomorrow`，1654固定 `is still unconfirmed`。語言按鈕標籤246／514也寫死在元件，未集中i18n。已存在 document.lang 切換（75／82），不要再誤報缺少語言標籤更新。
+### R01-10 [UX-05, visible P1/P2] Visible extra features were ineffective/incomplete
 
-復驗：繁中下觸發validation／conflict／權限錯誤，開通知、風險、時間軸；所有系統名稱與錯誤欄位為繁中，ARIA標籤同樣更新。
+- Normal lessons were buttons with no-op handlers when requestId was absent, [app.tsx:800](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:800).
+- Viewed count was displayed, 1572, but no `/api/requests/:id/view` request existed.
+- Template, 1199, filled every subject with the same English content and an example.org material URL, automatically satisfying all seven fields. Remove the entry or provide a clearly editable, real starting point.
+- Root wrote `data-contrast="true"`, 216, while CSS 43/51 matched `"high"`, so the toggle did not change styling.
+- Simple mode only wrote data-simple, 217; CSS had no matching rules. The student view did not simplify, but global prefs.simple could hide admin navigation on next login, 208.
+- Calendar download, 86–95, silently returned on non-200 with no visible error. This was visible P1 quality, not a demand for subscription support.
 
-### R01-08 [UX-03] 阻擋 P0 對比：主要按鈕文字被更高 specificity 覆寫
+### R01-11 [SCHED-02, STATE-02, STUD-01] Role next actions and change markers incomplete
 
-[handover.css:62](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/handover.css:62) 的 `.handover-root button { color: inherit }` specificity高於150–155的 `.btn { color: #fff }`。淺色主按鈕因此預期繼承 --ink=#122033，背景 --cobalt=#1d4ed8；demo secondary背景=#16345c。
+At [app.tsx:806](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:806), changes had text/color but no required icon. Overview computed incoming at 704 but used only incoming[0]; Requests, 990, lacked an “Awaiting my confirmation” grouping. Student Overview, 751–766, showed today's lessons without per-lesson preparation/task summaries; the week timetable was another route without a homepage Today/This Week entry.
 
-只根據CSS色值與WCAG公式靜態計算，對比約2.45:1／1.31:1，低於一般文字4.5:1。未使用瀏覽器 getComputedStyle，完成後需實測確認，而非只靠這個預估宣稱驗收失敗或通過。
+Recheck text + icon + color markers; all Pending requests with recipientId equal to the current teacher; and clear student Today/This Week access with what to bring/submit/reminders and persistent tasks. A single next-step button or detail-only tasks do not meet the historical homepage requirement.
 
-復驗：390／768／1440下computed color、contrast、焦點樣式與disabled樣式；深色狀態badge亦須檢查。
+## P0 requirement matrix
 
-### R01-09 [REQ-01、UX-04] P0 流程風險：來源課堂辨識、編輯狀態與開啟位置不足
-
-[app.tsx:1233](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1233) 只改lessonId，targetDate／period／room仍是舊來源課堂的useState初值。來源option1237沒有className，教師同一科在多班授課時無法由選項辨識班級。fallback choices1127允許任何有originalDate的lesson，不完全等同自己可編辑的来源。
-
-Editor沒有key（1054），state不隨existing改變重設；編辑中再點「New handover」會改變existing但保留先前內容，可能把舊交接作為新草稿。Detail也無key，先前輸入的comment／supplement可能留到另一張交接。
-
-復驗：切換來源後顯示明確日期／節次／班級，代課默認目標跟新来源一致；從編辑→新建或A詳情→B詳情，不能沿用未經用戶確認的私密留言。
-
-### R01-10 [UX-05；可見 P1/P2] 無作用／不完整的額外功能
-
-- [app.tsx:800](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:800)：所有正常課堂亦渲染可點button，沒有requestId時handler什麼都不做。應正常顯示內容／開詳情／提供建立交接，或不呈現成可操作按鈕。
-- [app.tsx:1572](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1572)：回條顯示viewedCount，但UI沒有任何 `/api/requests/:id/view` 呼叫；學生真的閱讀不會增加。這是可見P1入口未接完整，不要求新做未顯示P1。
-- [app.tsx:1199](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:1199)：範本按鈕對每科填同一段英文與example.org教材URL，並自動把七欄填滿。可移除或改為清楚可編的有效起點，不能讓假教材自動通過交接要求。
-- [app.tsx:216](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:216) 寫data-contrast="true"，CSS43／51只比對"high"，高對比開關不改樣式。
-- simple開關只寫data-simple（217），CSS沒有對應selector；student界面沒有簡化，反而208會因為全域prefs.simple讓下次登入admin隱藏管理導航。可移除該P2入口或真正接好。
-- downloadCalendar86–95遇非200靜默return，沒有下載失敗訊息；這是可見P1功能品質，未要求做訂閱。
-
-### R01-11 [SCHED-02、STATE-02、STUD-01] 明確的角色下一步與異動標記尚缺
-
-[app.tsx:806](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/components/handover/app.tsx:806) 的異動標記只有色彩和文字，沒有原要求的圖示。Overview704計算incoming，但只取incoming[0]作為單一「下一步」；Requests990未有recipient／「待我確認」分組，無法直接看到與本人相關的完整待確認清單。學生Overview751–766只列今日課堂，沒有每堂學生待辦摘要；本週課表在另一個導覽頁，首頁沒有Today／This Week切換。
-
-復驗：異動格包含文字＋圖示＋色彩；教師有「待我確認」且只列recipientId=本人、status=Pending的清單；學生首頁提供清楚的Today／This Week入口及每堂異動的「帶什麼／交什麼／提醒」摘要，可開啟並保存待辦。不得以只存在明細頁或單一任務按鈕代替原需求。
-
-## P0 逐條核對
-
-| 原需求 | 靜態已有 | 初步缺口／待復驗 |
-|---|---|---|
-| 1 帳號／角色 | Email密碼、兩類註冊、邀請碼、復原、四個真demo API、個資PATCH、登出POST、me初始化 | session失效處理、個資／登出錯誤、busy、註冊後保存復原碼的完成狀態；不同帳號越權須runtime驗 |
-| 2 課表 | 當週API、前後週、五天、teacher/student/admin角色、異動色與文字、admin課表filters | 異動沒有圖示；正常lesson是假可點；390/768布局與日期／空態待驗 |
-| 3 建立申請 | 來源選擇、move/substitute、原因select＋文字、conflicts API | R01-02即時檢查；來源未顯示班級；切來源後目標未同步 |
-| 4 強制交接 | 六個文字欄＋materials、草稿POST/PATCH、送出POST、補充POST | R01-01 gate/缺項；重試可能重建draft；送出後鎖定由canEdit＋server共同驗 |
-| 5 接課確認 | Pending指定recipient按鈕、接受／退回API、可改Declined、timeline、Completed／Cancelled | 退回空留言無前端disabled／busy；timeline系統字串未翻；跨角色完整流程待驗 |
-| 6 學生檢視 | Overview Today、Timetable週／日、原/新教師時間教室、待辦POST | 安全原因洩漏R01-04；Today首頁只展示課堂，不直接列每堂待辦；待辦保存與跨學生隔離待驗 |
-| 7 通知中心 | 未讀數、標單筆／全部已讀POST、onOpen跳轉 | 無未讀紅點（只有文字count）；跨週詳情R01-03；事件／前一天提醒runtime驗；API失敗處理不足 |
-| 8 教務處總覽 | pending／declined／confirmed統計、風險、日期／status／文字搜尋 | R01-05缺班級／教師交接filters與本週異動統計 |
-| 9 品質 | 手機優先CSS、768/1100breakpoint、label包覆輸入、focus-visible、empty/loading/部分error、EN/ZH、admin reset確認文字 | 錯誤/busy缺失、對比覆寫、系統字串未翻；表單長頁非modal，需實測；seed/runtime reset須另驗 |
-
-上表「靜態已有」只表示程式中存在對應接線，不表示功能已通過。
-
-## 所有可見按鈕／API 方法盤點
-
-下表涵蓋app.tsx目前所有41個button宣告位置（map可產生多個實際按鈕），沒有單靠按鈕名稱推定它已可用。
-
-| 位置 | 可見控制 | handler／真正請求 | 初步結果 |
-|---|---|---|---|
-| 227、387 | 側欄／手機導航 | setView；側欄另setEditing(false) | 有作用；手機導航未清editing；需焦點與返回情境驗 |
-| 240、509 | 語言 | setLanguage→localStorage偏好＋html.lang | 真偏好，不是角色假切換；標籤字串需集中 |
-| 248 | 登出 | POST /api/auth/logout（body={}） | 接真API；無catch/busy |
-| 274、285 | 重新整理／重試 | load→GET /api/workspace | 接真API；401處理待修 |
-| 631 | 登入／註冊／復原Continue | POST /api/auth/login、register、reset | 有catch/busy；註冊成功後只shownCode、需復驗完成流程 |
-| 636、643 | 建立帳號／返回登入／忘記密碼 | setMode | 有作用；保留error/shownCode/password的跨mode狀態須檢查 |
-| 655、662、669、676 | student／teacher0／teacher1／admin demo | POST /api/auth/demo | 真session；沒有disabled busy，可能競態 |
-| 728、772 | 下一步交接／風險 | setSelected＋setView(requests) | 有state變化；當前workspace沒有ID時無詳情 |
-| 797 | 課堂 | requestId存在才onOpen | 無requestId時no-op |
-| 849、859 | 前／後週 | setWeek→GET /api/workspace?week | 真API；快速點擊response排序待驗 |
-| 866 | 日曆下載 | GET /api/calendar→blob下載 | 真接線；非200無提示 |
-| 908 | 選星期 | setDay→day-list過濾 | 手機有作用；desktop week-grid仍顯示整週，須避免看似切換內容卻無效 |
-| 1041 | 新交接 | setSelected(null)、setEditing(true) | 真編輯區；useState未key重設風險 |
-| 1084 | 開交接 | onSelect(id)、setEditing(false) | 真state；無GET詳情、無scroll/focus |
-| 1324 | 套範本 | setHandover固定內容 | 本機操作；假教材與非科目範本問題 |
-| 1385 | 新增教材 | append {title:'',url:''} | 真操作；無移除控制，屬品質改進非單獨P0阻擋 |
-| 1398 | 檢查可用時段 | POST /api/conflicts | 真API；手動、過期、無catch/busy |
-| 1433 | 儲存草稿 | formSubmit→POST /api/requests或PATCH /api/requests/:id | 真API；無busy；原生required可能阻止欠安排／原因草稿，但允許欠交接草稿 |
-| 1436 | 送出確認 | 上述保存→POST /api/requests/:id/submit | 真API；未disabled、不完整create後submit失敗會重建 |
-| 1439 | 關閉編輯 | onClose→setEditing(false) | 有作用；未保存內容直接捨棄 |
-| 1597 | 編輯 | onEdit→setEditing(true) | 只Draft/Declined原教師顯示；真正授權仍需API驗 |
-| 1611、1623 | 接受／退回 | POST /api/requests/:id/respond | 真API；空退回沒有先擋、無busy |
-| 1652 | 送補充 | POST /api/requests/:id/supplements | 真API；無busy/空文字gate，輸入成功後未清 |
-| 1668 | 完成 | POST /api/requests/:id/status {Completed} | 真API；狀態門控存在、無busy |
-| 1683 | 取消 | window.confirm→POST status {Cancelled} | 真API；固定英文comment保存，無busy |
-| 1697 | 列印 | window.print | 有真正瀏覽器操作；列印整頁而非單張詳情需實測 |
-| 1729、1741 | 全部已讀／單則通知 | POST /api/notifications/read→reload；單則另onOpen | 真API；無catch/busy、跨週detail問題 |
-| 1813 | 存個資 | PATCH /api/profile→GET /api/auth/me→workspace | 真API；無catch/busy／欄位友善錯誤 |
-| 1894 | 重設demo | confirm匹配才可按，POST /api/admin/reset | 真API；無catch/busy；真實資料保留另API驗 |
-| 1965 | 啟用／停用人員 | PATCH /api/admin/users/:id→GET users | 真API；無catch/busy、自我停用仍顯示且後端拒絕 |
-
-其餘可見互動包括表單input/select（state）、查詢filter（client filter）、profile checkbox（prefs）。高對比／簡易檢視的接線問題已列R01-10。Users、Audit、Impact讀取都有真正GET，但無錯誤恢復；沒有以這些未完成的額外頁面宣稱P1/P2通過。
-
-## 手機／鍵盤靜態觀察與完成後復驗
-
-目前 Editor 是普通inline form（1215），不是modal；無Dialog／aria-modal／focus trap，因此不能聲稱手機modal通過，也不能單憑沒有modal判原始P0不合格。原始 P0 未指定必須使用 modal 或特定元件套件，因此本審查不以 inline form 或未採 shadcn 單獨列為阻擋。要求是實際可鍵盤操作、焦點合理與手機不裁切。
-
-CSS在768以下sidebar仍以完整縱向區塊占據首頁，另有bottom-nav；沒有drawer，也未hidden。頁面小寬度還要實測long URL、長名、row裡date／period／room與materials雙欄能否合理換行。checkbox也受全域input width:100%（137–144）影響，須檢查勾選視覺與label點選範圍。基礎label與focus-visible已存在，錯誤尚無aria-invalid／aria-describedby關聯；loading是普通p，沒有狀態宣告。
-
-完成後至少：
-
-1. 390×844：四身分主流程、七欄長表單、軟鍵盘、focus返回與捲動到詳情；英文／繁中各一次。
-2. 768×1024：來源切換、退回重送、日期／班級／教師／狀態組合、padding與表格橫向捲動。
-3. 1440×900：整週課表、全鍵盘登入→建交接→回覆→待辦→admin，確認Button text contrast實測。
-4. 200%縮放與可見高對比／大字／簡易檢視；無作用的額外入口先刪除或修正。
-5. 各APIerror、雙擊、防重建草稿、workspace response競態與session失效。
-6. 跨週通知、PRIVATE標记rawpayload、兩個學生待辦隔離、取消後恢復、demo reset後全部登入。
-
-Cursor 現已 ready_for_review；上述前端快照未變，初步發現已重核。最終修正 Prompt 應納入根代理的瀏覽器／API 證據後再發送；本文件沒有對 Cursor 發訊息或修改產品程式。
+| Requirement          | Static wiring present                                                                                                       | Gap/recheck                                                                                                  |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1 Accounts/roles     | Password login, two registration types, invitation, recovery, four real demo APIs, profile PATCH, logout POST, me bootstrap | Session expiry, errors/busy, completion after displaying recovery code; runtime authorization                |
+| 2 Timetable          | Current-week API, week navigation, five days, role views, change color/text, admin filters                                  | Missing icons, no-op normal lessons, 390/768 layout/date/empty states                                        |
+| 3 Create request     | Source, move/substitute, reason category/text, conflicts API                                                                | Automatic/stale checks, source class label, synchronized target                                              |
+| 4 Required handover  | Six text fields + materials; draft POST/PATCH, submit POST, supplement POST                                                 | Completeness/missing list, duplicate draft retry; verify edit locking                                        |
+| 5 Recipient response | Designated Pending recipient accept/decline APIs; Declined editing, timeline, Completed/Cancelled                           | Blank decline/busy gate, historical localized timeline, complete cross-role cycle                            |
+| 6 Student            | Today Overview, week/day timetable, original/new teacher/time/room, todo POST                                               | Private reason leak, homepage per-lesson task summary, persistence and student isolation                     |
+| 7 Notifications      | Unread count, single/all-read POST, open navigation                                                                         | Per-item unread marker, cross-week detail, event/reminder runtime, errors                                    |
+| 8 Admin              | Pending/declined/confirmed stats, risks, date/status/search                                                                 | Class/teacher request filters, real weekly-change statistic                                                  |
+| 9 Quality            | Mobile-first CSS, 768/1100 breakpoints, labels, focus-visible, loading/empty/some errors, EN/ZH, reset confirmation         | Error/busy gaps, contrast override, untranslated system text; long inline form and seeded/reset data runtime |
+
+“Static wiring present” means code existed, not that the feature passed.
+
+## Visible controls and API inventory
+
+All 41 app button declaration locations were covered; mapped declarations could render multiple buttons.
+
+| Lines              | Control                   | Handler/API                             | Preliminary result                                                 |
+| ------------------ | ------------------------- | --------------------------------------- | ------------------------------------------------------------------ |
+| 227, 387           | Desktop/mobile navigation | setView; desktop clears editing         | Real state; mobile editing/focus/back behavior pending             |
+| 240, 509           | Language                  | Preferences + html.lang                 | Real preference; labels not centralized                            |
+| 248                | Logout                    | POST /api/auth/logout                   | No catch/busy                                                      |
+| 274, 285           | Refresh/retry             | GET /api/workspace                      | Real API; 401 gap                                                  |
+| 631                | Continue                  | POST login/register/reset               | catch/busy present; recovery-code completion pending               |
+| 636, 643           | Auth mode                 | setMode                                 | Check cross-mode errors/code/password                              |
+| 655, 662, 669, 676 | Four demo roles           | POST /api/auth/demo                     | Real session; missing busy gate                                    |
+| 728, 772           | Next action/risk          | select ID + requests view               | Detail absent if ID excluded by workspace                          |
+| 797                | Lesson                    | onOpen only with requestId              | Normal lesson no-op                                                |
+| 849, 859           | Week navigation           | GET workspace?week                      | Out-of-order response pending                                      |
+| 866                | Calendar                  | GET calendar + blob download            | Non-200 silent                                                     |
+| 908                | Day selector              | setDay + day-list filter                | Desktop grid still all-week; misleading change risk                |
+| 1041               | New handover              | clear selection + editing               | Unkeyed state risk                                                 |
+| 1084               | Open handover             | select ID + end editing                 | No detail GET/focus/scroll                                         |
+| 1324               | Template                  | Local fixed content                     | Placeholder material; no subject-specific behavior                 |
+| 1385               | Add material              | Append blank title/URL                  | Real operation; no remove, quality improvement                     |
+| 1398               | Check availability        | POST /api/conflicts                     | Manual/stale; no catch/busy                                        |
+| 1433               | Save draft                | POST requests or PATCH ID               | No busy; native validation may block incomplete arrangement/reason |
+| 1436               | Submit                    | Save then POST ID/submit                | No completeness gate; failed submit could recreate                 |
+| 1439               | Close editor              | End editing                             | Unsaved input discarded                                            |
+| 1597               | Edit                      | Start editing                           | Draft/Declined original-teacher UI gate; API authorization pending |
+| 1611, 1623         | Accept/decline            | POST ID/respond                         | No blank-decline/busy gate                                         |
+| 1652               | Supplement                | POST ID/supplements                     | No busy/empty gate or clearing on success                          |
+| 1668               | Complete                  | POST ID/status Completed                | State gate present; no busy                                        |
+| 1683               | Cancel                    | confirm then POST status Cancelled      | Fixed English comment; no busy                                     |
+| 1697               | Print                     | window.print                            | Real browser operation; print scope pending                        |
+| 1729, 1741         | Read all/single           | POST notifications/read + reload/open   | No catch/busy; cross-week gap                                      |
+| 1813               | Save profile              | PATCH profile, GET me/workspace         | No catch/busy/friendly field errors                                |
+| 1894               | Reset demo                | Matched confirmation + POST admin/reset | No catch/busy; real-data protection API review                     |
+| 1965               | Enable/disable user       | PATCH user + GET users                  | No catch/busy; self-disable rendered but server rejects            |
+
+Inputs/selects update state, search controls filter locally, and profile checkboxes update preferences. Users/Audit/Impact have real GETs but no failure recovery. Incomplete extra routes were not declared passed P1/P2.
+
+## Mobile and keyboard observations; pending verification
+
+Editor was an inline form, line 1215, without Dialog/aria-modal/focus trap. Neither original P0 nor a mandated component library required a modal, so lack of modal/shadcn was not independently a blocker. Actual keyboard usability, focus, and uncropped mobile content were required.
+
+Below 768, the complete sidebar remained a vertical homepage block alongside bottom navigation, with no drawer/hiding. Long URLs/names, date/period/room rows, and two-column material controls needed runtime wrapping checks. Global input width:100%, 137–144, also affected checkbox visuals/label hit areas. Labels and focus-visible existed; errors lacked aria-invalid/aria-describedby, and loading was a plain p without status announcement.
+
+Recheck:
+
+1. 390×844: four identities, seven-field long form, soft keyboard, focus/back and detail scrolling; historical English/Traditional Chinese runs.
+2. 768×1024: source switching, decline/revise/resubmit, combined filters, padding and table overflow.
+3. 1440×900: full-week table; keyboard login/create/respond/todo/admin; measured button contrast.
+4. 200% zoom; visible contrast/large/simple toggles; remove or repair ineffective extra entries.
+5. API failures, double clicks, duplicate-draft retry, workspace races, session expiry.
+6. Cross-week notification; raw PRIVATE markers; two-student todo isolation; cancellation restoration; all demo logins after reset.
+
+Cursor was ready_for_review and the frontend snapshot was unchanged when findings were rechecked. The final repair prompt should integrate root browser/API evidence. This review sent no Cursor message and changed no product code.

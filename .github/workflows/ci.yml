@@ -18,6 +18,7 @@ jobs:
           cache: npm
           cache-dependency-path: handover/package-lock.json
       - run: npm ci
+      - run: npm run check:english
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck

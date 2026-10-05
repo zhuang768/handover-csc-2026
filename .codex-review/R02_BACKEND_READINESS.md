@@ -1,53 +1,53 @@
-# R02 後端複驗準備
+# R02 backend re-review readiness
 
-日期：2026-10-04，Asia/Taipei。Cursor 仍在 R02／R02B 施工；本輪沒有載入產品 service、執行正式 API 驗收或修改產品。
+Date: 2026-10-04, Asia/Taipei. Cursor was still implementing R02/R02B. This round did not import the product service, run formal API acceptance, or modify the product. This is a translated historical record; its observations and planned checks describe that round.
 
-## 唯讀施工觀察
+## Read-only observations during implementation
 
-- 本輪兩次檔案清單中，`drizzle/0001_slot_guards.sql` 尚未出現，實際只有 `0000_init.sql`、`meta/0000_snapshot.json` 與 `_journal.json`。這是施工中的待確認產物，不判定最終缺陷，也不宣稱已驗證 0001。
-- 現有 schema／migration 已有 `lessons_one_teacher_slot` unique index。service 施工差異包含 action POST method guard、學生 reason 去除、conditional Draft PATCH／submit、接受與取消的 SQL batch 與還原 snapshot。僅記錄修正方向，不以未完成版本判斷通過或失敗。
-- 正式複驗前，須確認 Cursor 交回的穩定 HEAD、完整 migration 清單與 guard／trigger 名稱，再評估是否所有 planned guards 已實際落盤。
+- Neither of the two file inventories contained `drizzle/0001_slot_guards.sql`. They contained only `0000_init.sql`, `meta/0000_snapshot.json`, and `_journal.json`. This was an unfinished artifact requiring confirmation, not a final defect or verified 0001.
+- The schema/migration already contained the `lessons_one_teacher_slot` unique index. In-progress service changes included action POST method guards, removal of student reason fields, conditional Draft PATCH/submit, accept/cancel SQL batches, and restoration snapshots. These describe repair direction, not a verdict on unfinished code.
+- Before formal re-review, establish Cursor's stable handback HEAD, complete migration inventory, and guard/trigger names, then confirm the planned guards actually exist.
 
-## Harness 現況與實際修正
+## Harness status and actual repair
 
-`review-d1.mts` 原本就使用 `readdirSync(...).filter(name => name.endsWith('.sql')).sort()`，逐檔以 SQLite `connection.exec` 執行，**不是只載入手寫 0000**。不切割分號，因此完整 `CREATE TRIGGER ... BEGIN ...; ... END;` 可以按 SQLite 正常語法執行。D1 batch 內所有 SQL 同步在一個交易內執行。
+`review-d1.mts` already used `readdirSync(...).filter(name => name.endsWith('.sql')).sort()` and executed every file with SQLite `connection.exec`; **it did not load only a handwritten 0000**. It did not split on semicolons, so complete `CREATE TRIGGER ... BEGIN ...; ... END;` statements retained valid SQLite syntax. All SQL in a D1 batch ran synchronously inside one transaction.
 
-本輪只改 reviewer adapter：
+Only the reviewer adapter changed this round:
 
-1. 回傳唯讀 `appliedMigrations`，每一項只在 SQL 完整執行成功後加入。正式複驗可直接核對 0001 是否真的執行，不依賴手動宣稱。
-2. 修正一個已重現的錯誤遮蔽：SQLite trigger 的 `RAISE(ROLLBACK)` 已經結束交易，原 catch 再執行 ROLLBACK，會把原本 errcode 1811 的 guard error 蓋成 errcode 1 的 `cannot rollback - no transaction is active`。現在交易已結束時不重複 rollback；其他 rollback 的次要錯誤不取代原始 SQL 失敗。沒有吞掉 constraint、放寬 schema 或弱化 assertion。
+1. It returned read-only `appliedMigrations`; a file was recorded only after its complete SQL succeeded. Re-review could verify execution of 0001 directly rather than relying on a claim.
+2. It fixed reproduced error masking: a trigger's `RAISE(ROLLBACK)` had already ended the transaction. The catch block's second ROLLBACK replaced the original guard error, errcode 1811, with errcode 1, `cannot rollback - no transaction is active`. The adapter now avoids rollback after the transaction ends; secondary rollback errors do not replace the original SQL failure. It did not swallow constraints, relax the schema, or weaken assertions.
 
-## 已實際執行的純 Adapter 自測
+## Adapter-only checks actually executed
 
-- 既有 `reviewer-harness.test.mts`：2／2 通過。平行 batch 不出現巢狀 BEGIN；後續 UNIQUE 失敗整批回復。
-- 另外 5 個記憶體 probe：5／5 通過。
-  - `appliedMigrations` 等於當次發現的全部 SQL 檔。本次實際輸出為 `0000_init.sql`。
-  - `RAISE(ABORT)` 保留原始 guard message／1811，回復之前的寫入，連線仍可使用。
-  - `RAISE(ROLLBACK)` 保留原始 guard message／1811，回復之前的寫入，連線仍可使用。
-  - conditional UPDATE 不命中時 `meta.changes = 0`，不捏造成功。
-  - foreign key 已啟用；FK 失敗往外拋出，前一筆寫入也回復。
-- reviewer adapter 與獨立 API 測試檔的 TypeScript `--noEmit` 檢查 exit 0。
+- Existing `reviewer-harness.test.mts`: 2/2 passed. Parallel batches did not nest BEGIN; a later UNIQUE failure rolled back the whole batch.
+- Five additional in-memory probes: 5/5 passed.
+  - `appliedMigrations` matched every discovered SQL file. The actual inventory then was `0000_init.sql`.
+  - `RAISE(ABORT)` retained the original guard message/1811, rolled back earlier writes, and left the connection usable.
+  - `RAISE(ROLLBACK)` retained the original guard message/1811, rolled back earlier writes, and left the connection usable.
+  - An unmatched conditional UPDATE returned `meta.changes = 0`, without fabricated success.
+  - Foreign keys were enabled; FK failure propagated and rolled back the preceding write.
+- Reviewer adapter and independent API test TypeScript `--noEmit`: exit 0.
 
-這些自測沒有呼叫 `handleApi`，沒有測試施工中的功能，也不能取代 Worker／正式 D1 驗收。
+These checks did not call `handleApi`, exercise unfinished features, or replace Worker/actual D1 acceptance.
 
-## 穩定版本交回後的執行計畫
+## Execution plan after stable handback
 
-1. **Migration 證據**：在新 Node process 建立全新記憶體 DB，列出 `appliedMigrations`，確認包含全部正式 SQL（含 0001）。從 `sqlite_schema` 列出實際 indexes／triggers，核對 SQL 本體與 snapshot／journal 的一致性。初始化用全部 migration，不用 SCHEMA_SQL 或手動跳過 guard。
-2. **Guard 行為**：以合法基礎資料逐一觸發實際 unique index／trigger，確認錯誤沒有被 adapter 蓋掉，整批回復、連線可繼續使用，且沒有失敗操作的 timeline／notification。先確認 fixture 在目前 guard 下合法；若 guard 已阻止不合法的課表變更，不停用 trigger 來硬造衝突，也不把 setup 的正確拒絕誤列成 API 缺陷。
-3. **正式 API 套件**：再跑完整 `independent-api.test.mts`。包含 R01 method／並行取消／原時段占用／重新檢查，以及 R02 private reason／supplement／PATCH-submit race／前一安排還原。使用新 process，避免沿用施工前快取的 service module。
-4. **Seed 空庫與故障恢復**：執行本輪新增的兩個 R02 案例，不能只在已 seed 的 fixture 測 demo login。
-5. **誠實報告**：記錄穩定 HEAD、指令 exit code、含父／子案例的實際計數、advisory／unsupported，區分 harness 問題、fixture 不合法與真正產品問題。若 schema／trigger 在 Node 與 Worker 行為不同，再由根代理的真實 Worker／D1 測試核對，不偽造 polyfill 或將 Node 結果當部署證據。
+1. **Migration evidence:** create a fresh in-memory DB in a new Node process, list `appliedMigrations`, and verify every final SQL file including 0001. Inspect actual indexes/triggers in `sqlite_schema`; compare SQL with snapshot/journal. Initialize with all migrations, never SCHEMA_SQL or manually skipped guards.
+2. **Guard behavior:** trigger actual unique indexes/triggers using valid fixtures. Confirm errors are not masked, the entire batch rolls back, the connection remains usable, and failed actions create no timeline/notification. If a guard correctly rejects an invalid schedule fixture, do not disable it to manufacture a collision or misclassify setup rejection as an API defect.
+3. **Formal API suite:** run all of `independent-api.test.mts`, including R01 method/concurrent cancellation/original-slot occupancy/rechecks and R02 private reasons/supplements/PATCH-submit races/previous-arrangement restoration. Use a new process to avoid a cached pre-repair service module.
+4. **Empty-school seed and recovery:** execute the two new R02 cases rather than checking demo login only against an already seeded fixture.
+5. **Honest reporting:** record stable HEAD, command exit code, actual parent/child counts, and advisory/unsupported results. Separate harness problems, invalid fixtures, and product defects. If Node and Worker schema/trigger behavior differs, use the root agent's actual Worker/D1 evidence; do not fabricate polyfills or treat Node results as deployment evidence.
 
-## 本輪新增 Seed 回歸（尚未執行）
+## New seed regressions this round (not yet executed)
 
-### 故障後真正重試
+### Actual retry after a fault
 
-從已執行全部 migration 的空庫開始；在 `lessons` 的 BEFORE INSERT 測試 trigger 注入 `RAISE(ABORT)`，透過 SQLite function 計數確定真的中斷 seed SQL。第一次 demo 請求應失敗，資料與 seed claim 必須全部回復。移除測試 trigger 後，**先真正重試三角色 demo API，再檢查失敗後 snapshot**，避免測試只宣稱可恢復而沒真的重試。
+Start from an empty DB with all migrations applied. Inject `RAISE(ABORT)` with a test BEFORE INSERT trigger on `lessons`; a SQLite function counter proves seed SQL was interrupted. The first demo request should fail and roll back all data and seed claims. Remove the test trigger, **actually retry demo APIs for three roles before inspecting the failure snapshot**, rather than merely claiming retry is possible.
 
-重建完整度檢查：3 班、8 位老師、36 位學生、1 位 admin、兩週課表、六個 request 狀態、兩位 demo 老師均可登入；lessons／requests／sessions／notifications／timeline／supplements／todos／views／slot_locks 沒有孤兒關聯，班級及老師沒有重複節次。
+Completeness checks: 3 classes, 8 teachers, 36 students, 1 admin, two school weeks, six request states, and working login for both demo teachers. Check lessons/requests/sessions/notifications/timeline/supplements/todos/views/slot_locks for orphan relations and duplicate class/teacher periods.
 
-### 空庫平行首請求
+### Parallel first requests on an empty DB
 
-再次從獨立空庫開始，同時釋放 8 個 teacher A／teacher B／student／admin demo 請求。每個請求都應取得正確角色的有效 session，學校資料必須是同一份完整 seed。後續再次一鍵登入不能重複新增或重置 users／lessons／requests。負向控制先確認 users、lessons 真的是 0，不能重用已 seed 的普通 fixture。
+Use another independent empty DB and release 8 teacher A/teacher B/student/admin demo requests simultaneously. Every request should receive a valid session for its role, backed by one complete school seed. Subsequent demo login must not duplicate or reset users/lessons/requests. Negative controls must first prove users and lessons are 0; an ordinary pre-seeded fixture is insufficient.
 
-獨立 API 套件目前共 28 組頂層案例。這兩個新案例與其他 R02 API 案例均**尚未執行**；目前只通過 reviewer 檔靜態型別檢查。
+The independent API suite then had 28 top-level cases. These two cases and the other new R02 API cases were **not yet executed**; only reviewer static type checking had passed.

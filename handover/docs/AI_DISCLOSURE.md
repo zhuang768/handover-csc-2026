@@ -1,6 +1,6 @@
 # Handover — AI and outside-resource disclosure
 
-官方允許 AI，要求揭露並能解釋最终作品。[正式規則](https://csc-back-to-school.devpost.com/rules) 這份文件描述本次開發中可確認的 AI 協助；最後仍需由本人核對工具、理解內容並加入未列資源。
+The organizers allow AI use, require disclosure, and expect the participant to explain the final project. See the [official rules](https://csc-back-to-school.devpost.com/rules). This document records confirmed AI assistance during development. The participant must verify the tools, understand the work, and add any unlisted resources.
 
 ## Short version for Devpost
 
@@ -12,7 +12,7 @@ OpenAI Codex and Cursor assisted with architecture, implementation, interface co
 | --- | --- | --- |
 | Product scope | Converted the supplied requirements into an implementation plan and recorded tradeoffs. | Participant supplied the school problem and handover-first requirement; review DECISIONS.md. |
 | Engineering | Generated and edited application code, backend workflow and authentication code, seed data, and tests. | Review the released code and explain how authentication, role permissions, validation, and state transitions work. |
-| Interface and copy | Assisted with role-oriented screens, English / Traditional Chinese text, and form/error copy. | Try the actual roles and judge whether the language and flow fit a school. |
+| Interface and copy | Assisted with role-oriented screens, interface text, form/error copy, and the English-only update. | Try the actual roles and judge whether the English copy and flow fit a school. |
 | Test and review work | Assisted with test cases, commands, debugging, and review. | Only TEST_REPORT.md and actual command/browser results determine what passed. AI statements are not independent validation. |
 | Research | Read the official hackathon overview, rules, schedule, resources, and organizer updates; identified the deadline inconsistency. | Confirm eligibility and submission choices personally; recheck official pages before submitting. |
 | Submission assets | Drafted this disclosure, Devpost copy, the demo script, and screenshot plan. | Edit statements to match the released product and the participant's own understanding. |
@@ -23,7 +23,7 @@ OpenAI Codex and Cursor assisted with architecture, implementation, interface co
 - **Applied skills this round:** security-best-practices (React frontend notes), workers-best-practices (D1 batch, no request-time DDL), design-system tokens, redesign-existing-projects (dashboard, not a landing page), ui-styling (contrast and focus), vercel-react-best-practices (no extra waterfalls), ai-debt-detector (failed effects and silent calendar errors).
 - **Application stack:** React 19, TypeScript, Vinext, Cloudflare Workers, Cloudflare D1 / SQLite. Additional libraries and versions are documented in package.json and the lockfile.
 - **Demonstration data:** synthetic school classes, teachers, students, lessons, and handover scenarios. Confirm the final seed contains no real student personal or sensitive data.
-- **Prior assets:** Vinext / Cloudflare Sites starter already in this folder. Added fonts: Manrope and a UI subset of Noto Sans TC (OFL). Icons: lucide-react (ISC, with Feather MIT portions). See `CREDITS.md`. No stock photos.
+- **Prior assets:** Vinext / Cloudflare Sites starter already in this folder. The English-only app uses Manrope (OFL). Earlier versions used a Noto Sans TC subset, removed in the English-only update. Icons: lucide-react (ISC, with Feather MIT portions). See `CREDITS.md`. No stock photos.
 - **Sponsor services:** `[CONFIRM: list only the tools actually used, if any; Cloudflare deployment does not imply Render Workflows usage.]`
 
 ## Understanding and review checklist

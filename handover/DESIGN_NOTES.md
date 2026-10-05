@@ -16,7 +16,7 @@ Also used, more lightly: WebUntis for week and class/teacher location, Google Cl
 
 `components/handover/handover.css` uses primitive values, then semantic names (`--ink`, `--paper`, `--cobalt` still means the action green so older rules keep working), then component rules for buttons, lessons, and badges. Dark mode and high contrast change those tokens. Disabled buttons use a solid fill and darker label, not faded opacity.
 
-Manrope (latin, variable, self-hosted) is for English and numbers. A small Noto Sans TC subset covers the Traditional Chinese interface strings. Longer teacher-written text falls through to PingFang TC, Microsoft JhengHei, or an installed Noto Sans TC. `font-display: swap`. Dates and periods use tabular numbers.
+Manrope (Latin, variable, self-hosted) is used for the English interface and numbers, with a standard sans-serif fallback and `font-display: swap`. The English-only update removes the previous language-specific font and fallback rules. Dates and periods use tabular numbers.
 
 ## Motion
 

@@ -73,12 +73,17 @@ test("built worker offline reload shows the public page, not a synthetic event",
   expect(cacheReport.bodies.join("\n")).not.toContain("PRIVATE_TEACHER_NOTE");
   expect(cacheReport.redirected).toBe(false);
   expect(cacheReport.bodies.join("\n")).toContain("needs a connection");
-  expect(cacheReport.bodies.join("\n")).toContain("交接需要網路");
+  expect(cacheReport.bodies.join("\n")).toMatch(/Nothing was\s+submitted/);
+  expect(cacheReport.bodies.join("\n")).not.toMatch(/\p{Script=Han}/u);
 
   await page.context().setOffline(true);
   await page.reload();
   await expect(page.getByText("needs a connection")).toBeVisible();
-  await expect(page.getByText("交接需要網路")).toBeVisible();
+  await expect(
+    page.getByText("Nothing was submitted.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  expect(await page.locator("body").innerText()).not.toMatch(/\p{Script=Han}/u);
   await expect(page.getByText("PRIVATE_TEACHER_NOTE")).toHaveCount(0);
 
   await page.context().setOffline(false);
@@ -91,9 +96,7 @@ test("built worker offline reload shows the public page, not a synthetic event",
   await page.getByRole("textbox", { name: "Full name" }).fill("Offline Probe");
   await page.context().setOffline(true);
   await page.getByRole("button", { name: "Save profile" }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    /reach the server|無法連線/,
-  );
+  await expect(page.getByRole("alert")).toContainText(/reach the server/);
   await expect(page.getByText("Saved")).toHaveCount(0);
   await page.context().setOffline(false);
   await page.reload();

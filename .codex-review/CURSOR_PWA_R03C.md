@@ -1,35 +1,37 @@
-# R03C — 使用者最新定位：網址＋加入主畫面使用的 App
+# R03C — an app accessed by URL and added to the home screen
 
-使用者直接要求：「我是要做一個 app，目前先用網址然後加入主畫面的方式去做。」這是既有 Handover 工作的新增驗收條件。沿用已批准的暖白 × 墨綠校園課務手冊，手機是學生的主要使用裝置；教師與管理員保留完整桌面工作台。請接續 R03 修復，把此項一起完成，不需另詢問方向，不要中斷未完成的原始驗收。
+Historical implementation prompt, translated into English on 2026-10-05. The language requirements below describe the earlier release and are superseded by the user's later English-only instruction.
 
-## 實作前的現況
+The user explicitly requested an app initially accessed through a URL and added to the home screen. This adds an acceptance condition to the existing Handover work. Keep the approved warm-white and forest-green campus handbook design. Phones are the student's primary device; teachers and administrators retain the full desktop workspace. Continue the R03 repairs and complete this condition without asking again about direction or abandoning unfinished acceptance work.
 
-- 目前 app/layout.tsx 只有 favicon metadata，未找到 manifest、Apple icon 或 service worker。
-- public/favicon.svg 還是舊藍色品牌。請改成與已批准的墨綠品牌一致的自製 Handover 圖形，提供真正 PNG 安裝圖示，不能只改副檔名。
-- 不添加新的 production 套件，不接 App Store、推播、付費服務或第三方帳號。
+## State before implementation
 
-## 最小完整 PWA
+- `app/layout.tsx` has favicon metadata but no manifest, Apple icon, or service worker was found.
+- `public/favicon.svg` still uses the old blue branding. Replace it with an original Handover graphic matching the approved forest green and provide actual PNG installation icons, not renamed files.
+- Do not add production packages, App Store integration, push, paid services, or third-party accounts.
 
-1. HTTPS 正式網址可用，manifest 以正確 JSON/MIME 回應，HTML 有 manifest link。manifest 包含穩定 id、name/short_name、start_url、scope、display: standalone、背景與主題色，以及可實際載入的 192/512 PNG 和具適切安全留白的 maskable icon。root metadata 配置 apple-touch-icon（180 PNG）、Apple standalone 相容資訊與 viewport/theme color；不要阻止縮放。
-2. App 內提供自然、可收合且有鍵盤/focus 的「加入主畫面 / Add to Home Screen」入口。iPhone/iPad 顯示 Safari 分享→加入主畫面→開啟為 Web App 的簡短說明（版本文字差異可註明）；Chromium 只有收到 beforeinstallprompt 才顯示可執行的安裝按钮，沒有事件時給瀏覽器選單說明。必須處理已安裝/standalone 狀態，不能畫一個永遠無效的安裝按鈕或自動彈出權限。
-3. 手機底部操作列、頁面頂部與表單尊重 env(safe-area-inset-*)，使用合適 dvh/min-height 與可捲動內容，虛擬鍵盤開啟時可完成表單；觸控目標 >=44px。standalone 沒有瀏覽器上一頁時，App 的返回、關閉詳情、導覽仍完整可用。保留學生下一堂／當日／週課表的優先順序。
-4. 加入主畫面不等於所有業務離線運作。明確顯示網路中斷與可重試，離線時不把提交/接受/取消顯示成成功。可實作小型原生 service worker：只保存無私人資料的離線說明頁和必要公開静態資源，導航 network-first，離線失敗才回離線說明頁；API、auth、私人課務 JSON、登入後 HTML、非 GET 與個人資料一律不進 Cache Storage。不要做資料同步佇列，不要以舊回應掩蓋權限或登出。
-5. service worker 需要更新/版本清理機制，使用者能在安全時重新載入新版；不要自動在編輯未存草稿時跳頁或 reload，也不要把熱更新 dev JS 永久快取。生產建置後確認 sw 路徑與 scope 正確，不可 SPA HTML 假冒 sw.js。若沒有實作 SW，可安裝性本身仍成立，但請完整交代離線與更新策略；不要宣稱具備未實作的離線課表。
-6. 安裝、離線與更新文案完整 EN/繁中，與既有 settings/errors/busy 行為一致，尊重 reduced motion。
+## Minimum complete PWA
 
-## 可重複驗證與交付
+1. Provide a working HTTPS URL, a manifest with correct JSON/MIME, and an HTML manifest link. Include stable id, name/short_name, start_url, scope, `display: standalone`, background/theme colors, actual 192/512 PNG icons, and a maskable icon with a safe area. Root metadata needs a 180px Apple touch icon, compatible standalone metadata, viewport, and theme color. Do not prevent zoom.
+2. Provide a natural collapsible Add to Home Screen entry with keyboard and focus support. Explain Safari Share → Add to Home Screen → Open as Web App as appropriate to the version. Chromium may show an actionable install button only after `beforeinstallprompt`; otherwise provide browser-menu guidance. Handle installed/standalone state. No permanently ineffective button or automatic permission prompt.
+3. Respect `env(safe-area-inset-*)` in bottom controls, page headers, and forms. Use suitable dvh/min-height and scrolling; forms must remain usable with the virtual keyboard. Touch targets are at least 44px. Back, close-detail, and navigation must work without browser Back in standalone mode. Preserve next-lesson, day, and week priorities for students.
+4. Home-screen installation does not make every operation work offline. Show connection failures and retry; do not report offline submit/accept/cancel as success. A small native service worker may store only a public offline page and necessary public assets. Navigations are network-first with public fallback on failure. Never cache API, auth, private school JSON, authenticated HTML, non-GET requests, or personal data. Do not add a synchronization queue or mask revoked permissions/logout with stale responses.
+5. Include worker version cleanup and safe user-approved reload. Do not leave an unsaved draft or permanently cache development HMR JavaScript. Check the production worker path and scope; SPA HTML must not masquerade as `sw.js`. A service worker is not mandatory for installability, but explain the actual offline/update strategy. Do not claim an unimplemented offline timetable.
+6. The earlier requirement called for complete English and Traditional Chinese installation/offline/update copy consistent with settings, errors, busy states, and reduced motion. This is historical scope, not the current language requirement.
 
-- Playwright/API 或資源檢查：manifest link、JSON/scope/start_url、PNG 真實尺寸/MIME、icon 200、service worker 註冊/範圍（若有）、離線導航與線上恢復、private/API 不進 Cache Storage；切帳號與登出後無離線資料洩漏；beforeinstallprompt 缺席時仍有有效指南。
-- 390/768/1440 實際 viewport 截圖，尤其學生手機首頁、手機交接詳情、加入主畫面指南。不能把桌機 screenshot 宣稱手機測試。
-- 真正 iOS/Android 原生「安裝到主畫面→點圖示 standalone 啟動」若手邊沒有手機，明確列為裝置端待驗證。桌面模擬不能代替真機成功證據。
-- README 與 demo/submission docs 明確定位為可安裝的 Web App，包含 iOS Safari/Android Chrome 安裝步驟、需要網路的操作、更新方法。CI 納入對應可自動執行的檢查。
-- 最後繼續更新 CURSOR_STATUS.json，區分已通過與待真機驗證，不要替監督者宣稱 GitHub/正式網址已完成。
+## Repeatable verification and delivery
 
-## 查證來源（官方；只借鑑規格和方法）
+- Check manifest link, JSON, scope/start_url, genuine PNG sizes/MIME, icon 200, worker registration/scope when present, offline navigation and recovery, and exclusion of private/API content from Cache Storage. Account switching/logout must not leak offline data. Without `beforeinstallprompt`, guidance must remain useful.
+- Capture actual 390/768/1440 viewports, especially student home, narrow request detail, and installation guidance. Do not call desktop screenshots physical-phone tests.
+- If no device is available, leave native iOS/Android home-screen installation and standalone launch explicitly unverified. Emulation is not proof of physical-device success.
+- README, demo, and submission copy must explain the installable web app, Safari/Chrome steps, network-required operations, and updates. Include automated checks in CI where practical.
+- Continue updating `CURSOR_STATUS.json`, separating passes from device checks. Do not claim that the supervising agent has completed GitHub or production publication.
 
-- https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable — manifest 與 HTTPS/localhost，SW 不是現行安裝性必要條件。
-- https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/How_to/Create_a_standalone_app — display: standalone 與 display-mode，需自身導覽。
-- https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios — Safari 加入主畫面與 Open as Web App。
-- https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html — Apple touch icon/legacy 相容 metadata（舊文件，不能宣稱涵蓋所有 2026 行為）。
+## Official research sources
 
-請依現有 Next/Vinext/Cloudflare 技術實際輸出驗證，不盲目照 Next 專屬行為假定 Vinext 支援。
+- https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable — manifest, HTTPS/localhost, and current installability without mandatory service worker.
+- https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/How_to/Create_a_standalone_app — standalone/display-mode and app-owned navigation.
+- https://support.apple.com/guide/iphone/open-as-web-app-iphea86e5236/ios — Safari home-screen installation and Open as Web App.
+- https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html — legacy Apple icon and compatibility metadata; this older document does not establish every 2026 behavior.
+
+Verify the actual Next/Vinext/Cloudflare output rather than assuming Vinext supports every Next-specific behavior.

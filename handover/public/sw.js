@@ -1,4 +1,4 @@
-const VERSION = "handover-public-r06-htm-1";
+const VERSION = "handover-public-english-1";
 const PREFIX = "handover-public-";
 const OFFLINE_PATH = "/offline.htm";
 const PRECACHE = [
@@ -27,7 +27,7 @@ function publicRequest(request) {
 }
 
 function embeddedOffline() {
-  const html = `<!doctype html><html lang="en"><body><h1>Handover needs a connection</h1><p>Nothing was submitted.</p><h2>交接需要網路</h2><p>沒有任何內容被送出。</p><button type="button" onclick="location.reload()">Try again · 重試</button></body></html>`;
+  const html = `<!doctype html><html lang="en"><body><h1>Handover needs a connection</h1><p>Nothing was submitted. Reconnect, then try again.</p><button type="button" onclick="location.reload()">Try again</button></body></html>`;
   return new Response(html, {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8" },

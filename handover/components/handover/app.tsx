@@ -22,13 +22,7 @@ import {
   getPendingWriteCount,
   subscribePendingWrites,
 } from "@/lib/client-api";
-import {
-  errorText,
-  translate,
-  type ExtraKey,
-  type Language,
-  type TextKey,
-} from "@/lib/i18n";
+import { errorText, translate, type ExtraKey, type TextKey } from "@/lib/i18n";
 import type {
   ChangeRequest,
   ConflictResult,
@@ -48,10 +42,10 @@ import {
 import "./handover.css";
 import { InstallGuide } from "./install-guide";
 
-function localWhen(value: string, language: Language) {
+function localWhen(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-Hant-TW" : "en", {
+  return new Intl.DateTimeFormat("en", {
     timeZone: "Asia/Taipei",
     month: "short",
     day: "numeric",
@@ -114,7 +108,7 @@ const emptyHandover = (): Handover => ({
 });
 
 type Prefs = {
-  language: Language;
+  language: "en";
   theme: string;
   large: boolean;
   contrast: boolean;
@@ -134,24 +128,39 @@ function emitPrefs() {
 }
 function readPrefs() {
   if (typeof window === "undefined") return;
-  const stored = localStorage.getItem("handover-prefs");
-  if (!stored) return;
-  prefsState = { ...defaultPrefs, ...(JSON.parse(stored) as Partial<Prefs>) };
+  try {
+    const stored = localStorage.getItem("handover-prefs");
+    if (!stored) return;
+    prefsState = {
+      ...defaultPrefs,
+      ...(JSON.parse(stored) as Partial<Prefs>),
+      language: "en",
+    };
+  } catch {
+    prefsState = defaultPrefs;
+    return;
+  }
+  persistPrefs();
+}
+function persistPrefs() {
+  try {
+    localStorage.setItem("handover-prefs", JSON.stringify(prefsState));
+  } catch {
+    // Display preferences still work when browser storage is unavailable.
+  }
 }
 let prefsLoaded = false;
 function ensurePrefs() {
   if (prefsLoaded || typeof window === "undefined") return;
   prefsLoaded = true;
   readPrefs();
-  document.documentElement.lang =
-    prefsState.language === "zh" ? "zh-Hant" : "en";
+  document.documentElement.lang = "en";
 }
 function updatePrefs(patch: Partial<Prefs>) {
   ensurePrefs();
-  prefsState = { ...prefsState, ...patch };
-  localStorage.setItem("handover-prefs", JSON.stringify(prefsState));
-  document.documentElement.lang =
-    prefsState.language === "zh" ? "zh-Hant" : "en";
+  prefsState = { ...prefsState, ...patch, language: "en" };
+  persistPrefs();
+  document.documentElement.lang = "en";
   emitPrefs();
 }
 async function downloadCalendar(week: string) {
@@ -186,7 +195,6 @@ function usePrefs() {
   const prefs = JSON.parse(snapshot) as Prefs;
   return {
     ...prefs,
-    setLanguage: (language: Language) => updatePrefs({ language }),
     setTheme: (theme: string) => updatePrefs({ theme }),
     setLarge: (large: boolean) => updatePrefs({ large }),
     setContrast: (contrast: boolean) => updatePrefs({ contrast }),
@@ -201,7 +209,7 @@ export default function HandoverApp() {
     getPendingWriteCount,
     () => 0,
   );
-  const t = (key: TextKey | ExtraKey) => translate(prefs.language, key);
+  const t = (key: TextKey | ExtraKey) => translate(key);
   const [user, setUser] = useState<User | null>(null);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [view, setView] = useState<View>("overview");
@@ -257,8 +265,8 @@ export default function HandoverApp() {
       setError(
         caught instanceof ApiError
           ? caught.status === 404
-            ? translate(prefs.language, "unavailableHandover")
-            : errorText(prefs.language, caught.code)
+            ? translate("unavailableHandover")
+            : errorText(caught.code)
           : t("networkError"),
       );
     }
@@ -287,13 +295,11 @@ export default function HandoverApp() {
       if (caught instanceof ApiError && caught.status === 401) {
         setUser(null);
         setWorkspace(null);
-        setError(errorText(prefs.language, caught.code));
+        setError(errorText(caught.code));
         return;
       }
       setError(
-        caught instanceof ApiError
-          ? errorText(prefs.language, caught.code)
-          : t("networkError"),
+        caught instanceof ApiError ? errorText(caught.code) : t("networkError"),
       );
     } finally {
       if (generation === loadGeneration.current) setLoading(false);
@@ -318,8 +324,8 @@ export default function HandoverApp() {
         }
         setSessionProblem(
           caught instanceof ApiError
-            ? errorText(prefs.language, caught.code)
-            : translate(prefs.language, "sessionOffline"),
+            ? errorText(caught.code)
+            : translate("sessionOffline"),
         );
       });
     return () => {
@@ -343,8 +349,7 @@ export default function HandoverApp() {
     return (
       <AuthScreen
         t={t}
-        language={prefs.language}
-        setLanguage={prefs.setLanguage}
+
         notice={error}
         sessionProblem={sessionProblem}
         onRetrySession={() => setSessionAttempt((value) => value + 1)}
@@ -420,14 +425,6 @@ export default function HandoverApp() {
             ))}
             <button
               type="button"
-              onClick={() =>
-                prefs.setLanguage(prefs.language === "en" ? "zh" : "en")
-              }
-            >
-              {prefs.language === "en" ? "繁體中文" : "English"}
-            </button>
-            <button
-              type="button"
               disabled={loggingOut}
               onClick={async () => {
                 setLoggingOut(true);
@@ -450,7 +447,7 @@ export default function HandoverApp() {
                   }
                   setError(
                     caught instanceof ApiError
-                      ? errorText(prefs.language, caught.code)
+                      ? errorText(caught.code)
                       : t("networkError"),
                   );
                 } finally {
@@ -550,7 +547,7 @@ export default function HandoverApp() {
           {view === "requests" ? (
             <Requests
               t={t}
-              language={prefs.language}
+
               user={user}
               workspace={workspace}
               selected={selected}
@@ -571,7 +568,7 @@ export default function HandoverApp() {
           {view === "notifications" ? (
             <Notifications
               t={t}
-              language={prefs.language}
+
               workspace={workspace}
               onOpen={(id, keepError) => void openRequest(id, keepError)}
               onReload={refresh}
@@ -604,13 +601,13 @@ export default function HandoverApp() {
           {view === "users" && user.role === "admin" ? (
             <Users
               t={t}
-              language={prefs.language}
+
               onMessage={setMessage}
               onUnauthorized={signOut}
             />
           ) : null}
           {view === "audit" && user.role === "admin" ? (
-            <Audit t={t} language={prefs.language} onUnauthorized={signOut} />
+            <Audit t={t} onUnauthorized={signOut} />
           ) : null}
           {view === "impact" && user.role === "admin" ? (
             <Impact t={t} week={week} onUnauthorized={signOut} />
@@ -672,14 +669,6 @@ export default function HandoverApp() {
             ))}
           <button
             type="button"
-            onClick={() =>
-              prefs.setLanguage(prefs.language === "en" ? "zh" : "en")
-            }
-          >
-            {prefs.language === "en" ? "繁體中文" : "English"}
-          </button>
-          <button
-            type="button"
             disabled={loggingOut}
             onClick={async () => {
               setLoggingOut(true);
@@ -691,7 +680,7 @@ export default function HandoverApp() {
                 else
                   setError(
                     caught instanceof ApiError
-                      ? errorText(prefs.language, caught.code)
+                      ? errorText(caught.code)
                       : t("networkError"),
                   );
               } finally {
@@ -713,16 +702,12 @@ export default function HandoverApp() {
 
 function AuthScreen({
   t,
-  language,
-  setLanguage,
   onUser,
   notice,
   sessionProblem,
   onRetrySession,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
-  setLanguage: (value: Language) => void;
   onUser: (user: User) => void;
   notice?: string;
   sessionProblem?: string;
@@ -783,9 +768,7 @@ function AuthScreen({
       }
     } catch (caught) {
       setError(
-        caught instanceof ApiError
-          ? errorText(language, caught.code)
-          : t("networkError"),
+        caught instanceof ApiError ? errorText(caught.code) : t("networkError"),
       );
     } finally {
       setBusy(false);
@@ -803,9 +786,7 @@ function AuthScreen({
       onUser(data.user);
     } catch (caught) {
       setError(
-        caught instanceof ApiError
-          ? errorText(language, caught.code)
-          : t("networkError"),
+        caught instanceof ApiError ? errorText(caught.code) : t("networkError"),
       );
     } finally {
       setBusy(false);
@@ -875,15 +856,6 @@ function AuthScreen({
           <p>{t("demoHint")}</p>
         </section>
         <section className="auth-panel">
-          <div className="row">
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={() => setLanguage(language === "en" ? "zh" : "en")}
-            >
-              {language === "en" ? "繁體中文" : "English"}
-            </button>
-          </div>
           <div className="auth-card stack">
             <h2>
               {mode === "login"
@@ -1555,7 +1527,6 @@ function Timetable({
 
 function Requests({
   t,
-  language,
   user,
   workspace,
   selected,
@@ -1570,7 +1541,6 @@ function Requests({
   onDrafting,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   user: User;
   workspace: Workspace;
   selected: string | null;
@@ -1696,7 +1666,6 @@ function Requests({
         <Editor
           key={`${current?.id ?? "new"}:${seedLesson}`}
           t={t}
-          language={language}
           user={user}
           workspace={workspace}
           existing={current}
@@ -1744,7 +1713,6 @@ function Requests({
         <Detail
           key={current.id}
           t={t}
-          language={language}
           user={user}
           request={current}
           onEdit={() => setEditing(true)}
@@ -1780,7 +1748,6 @@ function handoverGaps(value: Handover) {
 
 function Editor({
   t,
-  language,
   user,
   workspace,
   existing,
@@ -1791,7 +1758,6 @@ function Editor({
   onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   user: User;
   workspace: Workspace;
   existing: ChangeRequest | null;
@@ -1906,13 +1872,13 @@ function Editor({
             return;
           }
           if (caught instanceof ApiError && caught.status === 403) {
-            setError(translate(language, "permissionError"));
+            setError(translate("permissionError"));
             return;
           }
           setError(
             caught instanceof ApiError
-              ? errorText(language, caught.code)
-              : translate(language, "networkError"),
+              ? errorText(caught.code)
+              : translate("networkError"),
           );
         });
     }, 300);
@@ -1930,7 +1896,6 @@ function Editor({
     reason,
     handover,
     user.id,
-    language,
     retryCheck,
     onUnauthorized,
   ]);
@@ -1959,7 +1924,7 @@ function Editor({
       }
       if (caught instanceof ApiError) {
         setMissing(caught.fields);
-        setError(errorText(language, caught.code));
+        setError(errorText(caught.code));
       } else setError(t("networkError"));
     } finally {
       setBusy(false);
@@ -1976,41 +1941,17 @@ function Editor({
     setChecked(null);
   }
   function template() {
-    const subject =
-      lesson?.subject || (language === "zh" ? "這一堂" : "Lesson");
+    const subject = lesson?.subject || "Lesson";
     const file = `${window.location.origin}/worksheets/class-practice.txt`;
     setHandover({
       ...handover,
-      progress:
-        language === "zh"
-          ? `${subject}：上一堂的例題已經做完。`
-          : `${subject}: the class has finished the previous worked example.`,
-      plan:
-        language === "zh"
-          ? `先複習${subject}上一題，再教下一題，最後請學生完成練習檔。`
-          : `Review the last ${subject} example, teach the next one, then ask students to finish the practice file.`,
-      materials: [
-        {
-          title: language === "zh" ? `${subject}練習` : `${subject} practice`,
-          url: file,
-        },
-      ],
-      assessment:
-        language === "zh"
-          ? `下一堂前完成${subject}練習。`
-          : `Students finish the ${subject} practice before the next lesson.`,
-      equipment:
-        language === "zh"
-          ? "白板與一台共用投影機"
-          : "Board and one shared projector",
-      studentReminder:
-        language === "zh"
-          ? `帶${subject}筆記本和筆。`
-          : `Bring the ${subject} notebook and a pen.`,
-      teacherNotes:
-        language === "zh"
-          ? `若有人沒跟上，再示範一次${subject}例題。`
-          : `Repeat the ${subject} example for anyone who missed the first pass.`,
+      progress: `${subject}: the class has finished the previous worked example.`,
+      plan: `Review the last ${subject} example, teach the next one, then ask students to finish the practice file.`,
+      materials: [{ title: `${subject} practice`, url: file }],
+      assessment: `Students finish the ${subject} practice before the next lesson.`,
+      equipment: "Board and one shared projector",
+      studentReminder: `Bring the ${subject} notebook and a pen.`,
+      teacherNotes: `Repeat the ${subject} example for anyone who missed the first pass.`,
     });
   }
   return (
@@ -2283,7 +2224,6 @@ function Editor({
 
 function Detail({
   t,
-  language,
   user,
   request,
   onEdit,
@@ -2293,7 +2233,6 @@ function Detail({
   onDrafting,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   user: User;
   request: ChangeRequest;
   onEdit: () => void;
@@ -2314,12 +2253,11 @@ function Detail({
     void api(`/api/requests/${request.id}/view`, {}).catch(
       (caught: unknown) => {
         if (isUnauthorized(caught)) onUnauthorized();
-        else if (caught instanceof ApiError)
-          setError(errorText(language, caught.code));
-        else setError(translate(language, "networkError"));
+        else if (caught instanceof ApiError) setError(errorText(caught.code));
+        else setError(translate("networkError"));
       },
     );
-  }, [request.id, request.status, user.role, language, onUnauthorized]);
+  }, [request.id, request.status, user.role, onUnauthorized]);
   useEffect(() => {
     onDrafting(comment.trim().length > 0 || supplement.trim().length > 0);
     return () => onDrafting(false);
@@ -2339,9 +2277,7 @@ function Detail({
         return;
       }
       setError(
-        caught instanceof ApiError
-          ? errorText(language, caught.code)
-          : t("networkError"),
+        caught instanceof ApiError ? errorText(caught.code) : t("networkError"),
       );
     } finally {
       setBusy(false);
@@ -2455,7 +2391,7 @@ function Detail({
           <h3>{t("supplements")}</h3>
           {request.supplements.map((item) => (
             <p key={item.id}>
-              {item.authorName} · {localWhen(item.at, language)}
+              {item.authorName} · {localWhen(item.at)}
               <br />
               {item.text}
             </p>
@@ -2466,7 +2402,7 @@ function Detail({
         <h3>{t("timeline")}</h3>
         {request.timeline.map((item) => (
           <p key={item.id}>
-            {localWhen(item.at, language)} · {item.actorName} ·{" "}
+            {localWhen(item.at)} · {item.actorName} ·{" "}
             {actionLabel(item.action, t)} {item.comment}
           </p>
         ))}
@@ -2590,7 +2526,6 @@ function Detail({
 
 function Notifications({
   t,
-  language,
   workspace,
   onOpen,
   onReload,
@@ -2599,7 +2534,6 @@ function Notifications({
   onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   workspace: Workspace;
   onOpen: (id: string, keepError?: boolean) => void;
   onReload: () => Promise<void>;
@@ -2635,7 +2569,7 @@ function Notifications({
             }
             onError(
               caught instanceof ApiError
-                ? errorText(language, caught.code)
+                ? errorText(caught.code)
                 : t("networkError"),
             );
           } finally {
@@ -2669,7 +2603,7 @@ function Notifications({
                 }
                 onError(
                   caught instanceof ApiError
-                    ? errorText(language, caught.code)
+                    ? errorText(caught.code)
                     : t("networkError"),
                 );
                 onOpen(item.requestId, true);
@@ -2691,8 +2625,7 @@ function Notifications({
                       : item.title}
           </strong>
           <br />
-          {localWhen(item.createdAt, language)} ·{" "}
-          {item.read ? t("read") : t("unread")}
+          {localWhen(item.createdAt)} · {item.read ? t("read") : t("unread")}
         </button>
       ))}
     </section>
@@ -2804,7 +2737,7 @@ function Profile({
             }
             setError(
               caught instanceof ApiError
-                ? errorText(prefs.language, caught.code)
+                ? errorText(caught.code)
                 : t("networkError"),
             );
           } finally {
@@ -2890,7 +2823,7 @@ function Profile({
                 }
                 setError(
                   caught instanceof ApiError
-                    ? errorText(prefs.language, caught.code)
+                    ? errorText(caught.code)
                     : t("networkError"),
                 );
               } finally {
@@ -2908,12 +2841,10 @@ function Profile({
 
 function Users({
   t,
-  language,
   onMessage,
   onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   onMessage: (value: string) => void;
   onUnauthorized: () => void;
 }) {
@@ -2941,14 +2872,14 @@ function Users({
         }
         setError(
           caught instanceof ApiError
-            ? errorText(language, caught.code)
-            : translate(language, "networkError"),
+            ? errorText(caught.code)
+            : translate("networkError"),
         );
       });
     return () => {
       live = false;
     };
-    // Retry is driven by `attempt`; language is read when that attempt starts.
+    // Retry is driven by the explicit attempt counter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
   const shown = users
@@ -3045,7 +2976,7 @@ function Users({
                         }
                         setError(
                           caught instanceof ApiError
-                            ? errorText(language, caught.code)
+                            ? errorText(caught.code)
                             : t("networkError"),
                         );
                       } finally {
@@ -3067,11 +2998,9 @@ function Users({
 
 function Audit({
   t,
-  language,
   onUnauthorized,
 }: {
   t: (key: TextKey | ExtraKey) => string;
-  language: Language;
   onUnauthorized: () => void;
 }) {
   const [events, setEvents] = useState<
@@ -3105,8 +3034,8 @@ function Audit({
         }
         setError(
           caught instanceof ApiError
-            ? errorText(language, caught.code)
-            : translate(language, "networkError"),
+            ? errorText(caught.code)
+            : translate("networkError"),
         );
       });
     return () => {
@@ -3141,7 +3070,7 @@ function Audit({
       {!loading && !error
         ? events.map((event) => (
             <p key={event.id}>
-              {localWhen(event.at, language)} · {event.actorName} ·{" "}
+              {localWhen(event.at)} · {event.actorName} ·{" "}
               {actionLabel(event.action, t)}
               <br />
               {auditDetail(event.detail, t)}

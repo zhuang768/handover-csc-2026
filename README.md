@@ -1,70 +1,16 @@
 # CSC Back-to-School Hackathon
 
-本次作品在 [`handover/`](handover/README.md)。下面是比賽開始時的個人筆記，保留原文，不是公開作品說明。
+The project is [Handover](handover/README.md), an English-language school timetable and handover app.
 
-## 個人筆記（歷史）
+- [Live app](https://handover-campus-2026.ziz81503.chatgpt.site)
+- [Public source](https://github.com/zhuang768/handover-csc-2026)
+- [Workflow runs](https://github.com/zhuang768/handover-csc-2026/actions)
+- [Setup and demo guide](handover/README.md)
+- [Submission checklist](handover/SUBMISSION_CHECKLIST.md)
+- [Devpost draft](handover/docs/DEVPOST_SUBMISSION.md)
+- [Test report](handover/TEST_REPORT.md)
+- [AI disclosure](handover/docs/AI_DISCLOSURE.md)
 
-資料核對：2026-10-03。這是線上比賽，而且現在就在正式製作、提交期間。四場之中最優先處理這場。
+The [translated original hackathon notes](handover/docs/ORIGINAL_HACKATHON_NOTES.md) preserve the personal planning notes from the start of the competition. They are historical context, not participant eligibility verification or a final submission.
 
-## 最白話：在做什麼？
-
-做一個能改善學校生活的工具。例如讓學生更容易安排作業、讓社團整理資訊、改善校園溝通，或幫助有不同需求的同學使用校園服務。
-
-不限定只能寫程式，可以交網站、App、AI 工具、設計原型或實體裝置。重點是「校園裡真的有什麼問題，你的作品怎麼幫上忙」，不是塞越多功能越好。
-
-## 時間、資格與形式
-
-- 線上、公開競賽，不需要到現場。
-- 13–18 歲高中生；你目前 16 歲、就讀高中，符合活動列出的年齡與學生條件。
-- 可個人或最多 4 人組隊。
-- 平台提交期間：台灣時間 2026-09-04 15:00 至 **2026-10-05 15:00**。
-- 官方規則的截止寫成 Pacific 10/5 中午，與平台日程的 Pacific 10/5 午夜不同。準備時採較早的 **10/5 下午 3 點**；不要假設晚一點仍能送出。
-- Devpost 條款另要求未達居住地成年年齡的使用者取得父母／監護人合法同意。部分贊助工具也有各自的帳號與同意條件。
-
-## 要交什麼？
-
-在 Devpost 的作品提交頁，準備以下內容：
-
-1. 作品名稱、要解決的問題，以及誰會使用。
-2. 主要功能、做法與實作過程，說清楚目前真的完成哪些部分。
-3. 能證明作品內容的展示材料，例如操作截圖、設計畫面、實際作品照片或 Demo。
-4. 使用的工具、資源與重要既有素材；隊員姓名。
-5. AI 使用揭露：用在哪裡、幫了什麼，以及你自己做的決策。
-6. 若有原始碼或設計檔，附上可存取的連結。
-
-**1–2 分鐘 Demo 影片是選填，但官方鼓勵提供。** 不必為了拍長影片拖到錯過提交。
-
-若要角逐 Innovation Award／Honorable Mention，還要確認獎項參與選項、公開作品連結與主辦宣傳同意等要求。這些不要跟一般提交混為一談。
-
-## 舊作品、AI 能不能用？
-
-- 賽前發想、研究與學習允許，但實質作品開發須在正式期間完成。
-- 既有程式、作品、資料集、設計與重要素材必須清楚揭露；不能直接假設整份舊作品原封不動提交就符合規則。
-- AI 允許且鼓勵，不因使用 AI 扣分；但必須揭露，也必須能解釋功能與自己的設計決策。
-- 若想用 QRAlarm，先核對哪些部分是在本次正式期間完成，再決定本次新增的校園功能。這份筆記沒有替你選定作品，也不代表 QRAlarm 已在這場交件。
-
-## 提供什麼資源？
-
-官方列有贊助的 AI／App 開發、雲端、流程自動化、網域與程式學習工具。實際領取資格、啟用方式、期限與未成年使用條件要逐項看，不代表所有服務都可以無條件免費使用。
-
-## 現在可以怎麼做？
-
-建議只選一個小而清楚的校園問題，做出能展示的版本，不必等自平衡車的硬體完成。
-
-- [ ] 確認本次作品與賽前既有內容的界線。
-- [ ] 用一句話寫出「幫哪一種學生，解決什麼問題」。
-- [ ] 完成一條可操作、可展示的主要流程。
-- [ ] 整理截圖／Demo、作品說明、AI 與既有素材揭露。
-- [ ] 確認評審打得開所有作品連結。
-- [ ] 在台灣時間 10/5 下午 3 點前完成提交並查看成功狀態。
-
-以上是準備清單，並未替你提交作品。
-
-## 官方來源
-
-- [比賽介紹、提交要求與贊助工具](https://csc-back-to-school.devpost.com/)
-- [正式規則](https://csc-back-to-school.devpost.com/rules)
-- [平台精確提交期間](https://csc-back-to-school.devpost.com/details/dates)
-- [Devpost 使用條款](https://info.devpost.com/legal/terms-of-service)
-
-本文件是個人準備筆記；提交前以最新官方頁面再次核對。
+The participant must personally confirm eligibility, team details, terms, and prize choices, and submit the project on Devpost. Publishing this repository or website does not submit the competition entry.

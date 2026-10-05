@@ -1,6 +1,8 @@
-# Reviewer Service Worker 行為工具
+# Reviewer service-worker behavior harness
 
-工具：[sw-behavior-probe.mjs](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/sw-behavior-probe.mjs)。純 Node VM，沒有依賴、實際網路、瀏覽器、DB、Cache Storage 或產品寫入。正式模式只從 `git show <完整 SHA>:handover/public/sw.js` 取得固定來源，不讀施工中的 SW。執行產品 SW 的真正 install/activate/fetch/message handler；沒有用 regex 取代行為斷言。
+This is an English translation of the historical R03/R04 review record. It does not claim that those historical candidates are the current release.
+
+Tool: `sw-behavior-probe.mjs`. It uses Node VM with no dependencies, real network, browser, database, persistent Cache Storage, or product writes. Normal mode reads only `git show <full SHA>:handover/public/sw.js`, never a moving worktree. It executes the product's actual install, activate, fetch, and message handlers; behavioral assertions are not replaced by regex checks.
 
 ```sh
 node --check .codex-review/sw-behavior-probe.mjs
@@ -10,42 +12,40 @@ node .codex-review/sw-behavior-probe.mjs --self-test --offline-path=/offline
 node .codex-review/sw-behavior-probe.mjs --stable-sha f3fa696115a86f98995686b6bb934b90492133ab
 ```
 
-Exit 0：所有行為案例通過；1：至少一個案例失敗；2：參數／來源／工具錯誤。輸出 JSON 含選定offlinePath、commit、SW SHA256、28 案例名稱、結果及斷言錯誤。正式產品結果另見 [R03_PWA_RESULTS.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/R03_PWA_RESULTS.md)。
+Exit codes: 0 means all behavioral cases passed; 1 means at least one failed; 2 means an argument, source, or tool error. JSON records the selected offline path, commit, SW SHA-256, 28 case names, results, and assertion errors. Historical product findings are in [R03_PWA_RESULTS.md](R03_PWA_RESULTS.md).
 
-## 公開路徑契約選項（R04工具更新）
+## Public-path contract added in R04
 
-`--offline-path=/offline`可放在self-test或stable-sha命令，預設仍`/offline.html`。路徑必須是無origin/query/fragment/traversal的絕對公開static pathname；API／私人／框架namespace會拒絕，錯字與重複flag也拒絕。工具不從產品source推測路徑或修改產品source；離線body marker、HTML MIME、跨origin／非GET／敏感請求／Cache key／所有正反fixture一致採此契約，其他安全排除不變。只允許選定offline路徑，不會同時偷偷把舊路徑視為公開。
+`--offline-path=/offline` works with self-test or stable-SHA mode. The historical default remains `/offline.html`. The path must be an absolute public static pathname without origin, query, fragment, or traversal. API, private, and framework namespaces, unknown arguments, and duplicate flags are rejected. The harness never infers or modifies a product path. Body marker, HTML MIME, cross-origin, non-GET, sensitive requests, cache keys, and every positive/negative fixture use the selected contract; other safety exclusions are unchanged. Selecting a new path does not silently allow the old one.
 
-後續候選若改canonical `/offline`，根代理取得真正固定的完整40位SHA後使用（先以完整SHA替換示意值）：
+For the current `.htm` contract, use an actual fixed full 40-character SHA:
 
 ```sh
-node .codex-review/sw-behavior-probe.mjs --stable-sha R04_FULL_40_CHARACTER_SHA --offline-path=/offline
+node .codex-review/sw-behavior-probe.mjs --stable-sha FULL_40_CHARACTER_SHA --offline-path=/offline.htm
 ```
 
-JS匯出同樣支援`createHarness(source, { offlinePath: "/offline" })`、`probeSource(...)`、`selfTest(...)`。請不要對施工中的worktree source執行；CLI只讀固定SHA。
+JS exports also support `createHarness(source, { offlinePath: "/offline" })`, `probeSource(...)`, and `selfTest(...)`. The CLI requires committed source.
 
-本次自身5個Node回歸案例通過（public/private header、canonical path/body/MIME、兩種path全部28／6對照、可合成no-store公開回應及Cache API語意、CLI安全參數）。兩種path的safe fixture都是28 pass／0 fail，六個negative controls每种path均被抓到；原R03固定SHA使用default重跑仍22 pass／6 fail、source SHA256相同。沒有跑R04 movingTree或產品server/build。
+The historical five Node regression tests passed: public/private headers; canonical path/body/MIME; all 28 cases and six controls under both path choices; synthetic public no-store responses and Cache API semantics; and safe CLI arguments. Both safe fixtures passed 28/28 and caught all six negative controls. The original pinned R03 source still produced 22 passes/six failures with the same source SHA-256. No moving R04 tree or product server/build was tested by that tool update.
 
-## 工具自檢
+## Harness self-check
 
-- 安全 fixture：28 pass／0 fail。
-- 六個故意錯誤 fixture 均被預期的行為斷言抓到：私人內容快取、刪除其他 namespace、缺私人導航離線 fallback、install 自動 skipWaiting、allowlist 重導後存私人內容、沒有生命週期保護的背景 put。
-- 每個案例使用獨立 VM／記憶體 Cache；單案例 3 秒上限。固定結果：六個錯誤 fixture 分別出現 15／1／5／1／1／1 個失敗。這是檢查工具有偵測能力的證據，不是產品失敗數。
+The safe fixture passes 28/28. Six deliberately unsafe fixtures are detected: caching private content, deleting another namespace, missing private-navigation offline fallback, automatic install-time skipWaiting, caching a private redirect from an allowlisted resource, and unprotected background cache puts. Their respective failure counts are 15/1/5/1/1/1, demonstrating detector sensitivity rather than product failure counts. Each case has an independent VM/in-memory cache and a three-second limit.
 
-## 模擬 fidelity 與界線
+## Fidelity and limits
 
-採 Node 原生 Request／Response／Headers。Node 無法建立 `mode: navigate`，所以只覆寫這個瀏覽器可觀察欄位及 destination，其餘仍用原生 Request。記憶體 Cache 複製 Request／Response，保留完整 query key，模擬 GET-only put、add/addAll 成功狀態檢查與 Cache API 不受 HTTP no-store 自動保護的特性；尚未完整模擬 Vary、配額、eviction、opaque/CORS、底層持久化或瀏覽器任意終止 worker。
+The harness uses native Node Request, Response, and Headers. Node cannot construct navigation mode, so only the browser-observable mode and destination fields are overridden. In-memory cache clones requests/responses, retains query keys, supports GET-only put and add/addAll success checks, and models the fact that HTTP no-store does not automatically prevent explicit Cache API writes. It does not fully model Vary, quotas, eviction, opaque/CORS responses, persistence, or arbitrary worker termination.
 
-一般公開allowlist網路mock是`Cache-Control: public, max-age=3600`；合成private marker／Authorization／query／RSC／private redirect回應是`no-store`，不能迫使安全SW為了通過公開正例而忽略no-store。公開offline的MIME為HTML＋UTF-8；產品fallback只需正確HTML media type，允許合法charset參數正規化。其他非HTML公開mock目前不解析真SVG/PNG等二進位內容；它是Cache行為邊界，不是檔案渲染或圖像完整性測試。
+Ordinary public mocks use `Cache-Control: public, max-age=3600`. Private markers, Authorization, sensitive queries, RSC, and private redirect responses use no-store. Positive public cases therefore do not force safe workers to ignore no-store. Offline MIME is HTML with UTF-8; legitimate charset normalization is allowed. SVG/PNG mocks are not decoded as real binary images; these are cache-boundary tests, not rendering/integrity tests.
 
-`h.cacheControl("no-store")`可合成**相同公開URL與公開body，但HTTP不可快取**的負面回應；只覆寫公開mock，私人marker仍固定no-store。獨立回歸案例驗證這個控制及Cache API：錯誤worker明確put時，Cache Storage仍會存no-store，mock不替worker自動補安全guard。此可合成控制沒有新增第29個產品必過案例／擴大未確認需求；若根代理要測候選的no-store回應guard，可在install後設定control，再觀察同公開URLfetch是否新增write。
+`h.cacheControl("no-store")` constructs the same public URL/body with an uncacheable header, overriding public mocks only. Independent regression tests prove that explicit puts still store no-store responses, so the mock does not supply a missing safety guard. This control did not add a 29th required product case. To examine a candidate's public no-store guard, set the control after install and observe subsequent cache writes.
 
-生命週期案例刻意將 put 延遲 20ms，觀察它完成時 fetch 的 respondWith／waitUntil 是否都已結束。這可確認未被承諾保護的寫入，不能估算真瀏覽器中斷頻率。工具會排空 Promise 來觀察結果，不等同瀏覽器保證未受保護工作一定完成。
+The lifetime case delays put by 20ms and checks whether respondWith/waitUntil had both ended before completion. It identifies writes lacking lifetime protection, not the frequency of real interruption. Draining promises for observation does not guarantee that unprotected work finishes in browsers.
 
-網路只回合成公開字串／`PRIVATE_SW_PROBE`，可切成拒絕、401/403/500 或重導 metadata。Authorization／敏感 query／RSC／allowlist重導至私密API為刻意構造防護邊界，不證明產品現有正常流程有這些請求或洩漏。對應案例要求完全不新增 Cache 寫入；直接 API／auth／ICS／非 GET／跨 origin／私人導航另有獨立案例。
+Network mocks return public synthetic strings or `PRIVATE_SW_PROBE`, with rejection, 401/403/500, or redirect metadata. Authorization/query/RSC/private-redirect requests are deliberately constructed safety boundaries, not proof that normal product flows generate them or leak data. These cases require zero new cache writes. API/auth/ICS/non-GET/cross-origin/private-navigation cases remain independent.
 
-R03根代理已觀察到built Worker公開`/offline.html`307至`/offline`，這與重導至私密API的合成guard案例不同。VM沒有模擬Fetch内部response URL list及導航redirect-mode接受規則，因此不證明cached redirected offline頁能在真正navigation使用。後續candidate若改canonical public path，可相應調整公開資源契約，保留全部安全行為斷言；不能把舊`/offline.html`字串視為必要產品實作。
+Root observed the historical built Worker's `/offline.html` redirecting 307 to `/offline`. That public canonical redirect differs from a synthetic private-API redirect. VM does not model internal Fetch URL lists or navigation redirect-mode acceptance, so it cannot prove redirected cached pages work for actual navigation. Canonical-path changes may update the public contract while preserving all safety assertions; the old `.html` string is not a mandatory implementation.
 
-## 不可由此宣稱的結果
+## Results this tool cannot establish
 
-工具不證明 HTTPS 部署 MIME/header、manifest 安裝 eligibility、iOS/Android 加入主畫面、standalone/safe area、真正離線 reload、controllerchange 更新、使用者內容保存或真機字型／觸控。這些仍需固定候選版的實際瀏覽器與裝置驗收；不要求推播權限或整套離線同步。
+It does not establish deployed HTTPS MIME/headers, install eligibility, physical iOS/Android installation, standalone/safe areas, actual offline reload, controllerchange updates, user-content preservation, or phone fonts/touch. Those need fixed-candidate browser/device checks. Push permission and full offline synchronization are outside scope.

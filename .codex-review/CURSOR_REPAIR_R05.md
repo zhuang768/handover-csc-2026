@@ -1,42 +1,44 @@
-# Handover R05：收斂現有驗收缺口
+# Handover R05 — close remaining acceptance gaps
 
-繼續同一專案／branch／chat。R04 固定產品 `6b7b7cd734e9af06785d7f854d75dc8f3a160c6f`、app tree `ebbe56dda33a1547d67f17367bc067fe7a6eb2ab` 已獨立通過 format/lint/types、26產品test、85 reviewer計數、8 dev E2E、1 built offline E2E、28固定SHA SW案例。不要重做視覺或擴張功能。使用者已明確要「網址＋加入手機主畫面」的 App，暖白／墨綠方向已確認，不再問方向。
+Historical prompt, translated on2026-10-05. Counts,language requirements,and open defects reflect that round,not the later English-only release.
 
-先讀本輪 `.codex-review/R04_BROWSER_RESULTS.md`、`R04_API_RESULTS.md`、`R04_FRONTEND_RESULTS.md`／`R04_PWA_RESULTS.md`、`R04_DOCS_RESULTS.md`（存在的版本），只修下面仍未關閉的現有要求。reviewer檔案/assertions仍不可改動、skip或混入產品commit。
+Continue the same project/branch/chat. R04 product `6b7b7cd734e9af06785d7f854d75dc8f3a160c6f`,app tree `ebbe56dda33a1547d67f17367bc067fe7a6eb2ab`,independently passed format/lint/types,26product tests,85reviewer counts,8dev E2E,1built offline E2E,and28fixed-SHA SW checks. Do not redesign or expand features. The URL/home-screen app and warm-white/forest-green direction are approved.
 
-## 1. 更新保護要包含正在送出的 mutation
+Read available R04_BROWSER_RESULTS,R04_API_RESULTS,R04_FRONTEND_RESULTS/R04_PWA_RESULTS,and R04_DOCS_RESULTS. Repair only the existing gaps below. Do not edit/skip reviewer assertions or mix them into product commits.
 
-根代理已實際驗證舊R03 SW→R04：waiting新版提示出現；Profile未存姓名時更新按鈕消失、欄位保留；還原姓名再按確認後，真的fullreload、session保留、提示消失。**正常兩版更新與Profile dirty路徑已過，不需重新發測試版本或重做SW。**
+## 1. Update protection includes active mutations
 
-但 R04 原要求也明列「正在mutation不能reload」。app.tsx:2309 Detail的onDrafting只看comment/supplement、不含busy；Profile:2713只看欄位dirty、不含busy；Users:3003的writingId沒有回報root。等待接課接受（空comment）、管理員reset或啟停帳號時，更新按鈕仍可能可點。請把實際送出中的狀態納入共用更新阻擋，保留舊輸入/成功/失敗處理與正確cleanup。不要以猜測listener競態加功能。
+Root verified real R03→R04 waiting-worker update: unsaved Profile name removed the update button without losing input; restoring the name and confirming caused a genuine reload,retained session,and dismissed the banner. Normal two-version/Profile-dirty behavior already passed; no extra test publication or SW redesign is needed.
 
-先用產品自己的測試 delay一個真mutation、提供waiting worker條件，斷言busy期間不能觸發reload／skip-waiting，結束後才能更新；保留dirty Profile/Detail保護。這是既有要求的focused回歸，不加production套件或背景queue。
+The earlier requirement also forbids reload during mutation. Detail app2309 reports only comment/supplement dirty,not busy; Profile2713 reports field dirty,not busy; Users3003 does not report writingId to root. Accept with an empty comment,admin reset,and user enable/disable can leave update clickable. Include actual pending requests in shared update protection,retaining input,success/failure,and cleanup. Do not invent listener-race scope.
 
-## 2. 跨週開啟通知仍要保留「未讀狀態保存失敗」
+Use a product test delaying a real mutation with a waiting-worker condition. Assert no reload/skip-waiting while busy and eligibility afterward; retain dirty Profile/Detail guards. This is focused existing scope,not a production dependency or background queue.
 
-R04同週read500→detail200已修；但openRequest(id,true)在app.tsx:240遇targetWeek!=week會await load(targetWeek)，load:265又無條件setError("")，跨週仍清掉read錯誤。請保留單筆通知PATCH失敗的可見回饋，同時允許成功detail/不同週workspace正常打開；401仍先回登入，不呼叫失效詳情。用產品 E2E 的跨週notification＋read500/detail200/workspace200斷言錯誤最後仍可见。不只驗同週。
+## 2. Cross-week notification read failures remain visible
 
-## 3. 真正健康的768平板截圖
+Same-week read500→detail200 was fixed. Cross-week openRequest(id,true) app240 awaits load(targetWeek),whose line265 unconditionally clears error. Preserve read-status-save failure while allowing successful detail and other-week workspace to open. A401returns to sign-in without calling invalid detail. Product E2E must use cross-week notification plus read500/detail200/workspace200 and assert the final error,not only same-week behavior.
 
-固定6b7的 `07-teacher-768.png` 實際是登入畫面Loading…，但README標成Teacher home。workspace.spec.ts:261–263在demo後立即save；demo helper:26只等 `.handover-root`，AuthScreen app.tsx:801也有該class，並非登入完成證據。
+## 3. Healthy768tablet capture
 
-helper或768拍照前等真workspace200及Maya教師工作台heading/desktop nav；健康且可讀才save07。維持5–8張不同實際畫面，不用loading畫面冒充老師首頁。不要修改reviewer自己的PNG備份。
+Fixed6b7's07-teacher-768.png is actually sign-in Loading,but README says Teacher home. workspace.spec261–263 captures immediately after demo; helper26 waits only for .handover-root,also used by AuthScreen app801. That is not successful sign-in evidence.
 
-## 4. iPhone安裝指引順序與報告範圍
+Wait for real workspace200 plus Maya's teacher heading/desktop navigation before saving07. Keep5–8 distinct healthy readable screens; no loading screen as finished teacher home. Do not edit reviewer PNG backups.
 
-lib/i18n.ts:579/639 英／繁中同步修：Safari→分享→加入主畫面→在加入畫面啟用「Open as Web App／作為Web App開啟」（若有）→加入；之後才點主畫面圖示。現文案把Open as Web App放到開啟主畫面圖示之後，順序錯。依Apple官方 https://support.apple.com/en-au/guide/iphone/iphea86e5236/ios 。只借流程，不拷貝文案。
+## 4. iPhone guidance order and reporting scope
 
-TEST_REPORT可引用root `R04_BROWSER_RESULTS` 的真兩版SW正常更新／Profile dirty手動證據；實體iPhone/Android加入主畫面仍未驗。公開HTTPS與GitHubCI尚未做，不冒稱完成。R04文件報告其餘migration/packaging/CI無新缺陷，不重構。
+Repair both earlier languages in lib/i18n.ts579/639:Safari→Share→Add to Home Screen→enable Open as Web App on the add screen when available→Add→open the icon. Current text places the option after opening the icon,in the wrong order. Follow https://support.apple.com/en-au/guide/iphone/iphea86e5236/ios without copying its wording.
 
-## 5. 真實R02部分舊庫與已知demo教材stub仍未修完
+TEST_REPORT may cite root R04_BROWSER_RESULTS real two-version update/Profile dirty evidence. Physical iPhone/Android installation remains unverified. At this historical point,public HTTPS and GitHub CI had not run; do not claim them. No new migration/packaging/CI defect was found; do not refactor.
 
-85正式suite全綠，但backend對**真R02原碼**另做3個既有要求的historical probe，結果1pass／2fail（不是新增suite計數）。詳見R04_API_RESULTS。不要把「85全綠」當完整舊庫相容全部完成。
+## 5. Genuine partial R02 schools and known demo stubs remain incomplete
 
-- **部分庫已被誤判完整。** R02原seed第2筆lesson真正注入失敗，留下3classes／45demo users／1lesson／0requests，另有普通帳號與有效session。升R04後auth/me雖200，仍只有1lesson／0requests，卻寫seed_complete=1。service.ts:418–420以任意lesson>0＋3demo classes當完整舊庫，是錯誤捷徑。完整舊庫需合理驗證完整結構／demo關聯；部分庫原子補齊缺資料且保留現有帳號／session／修改過的lesson/request/supplement/todo/view，不能重置、清庫或盲目恢復既有課堂與交接的初始狀態。R02第1筆lesson故障的零lesson部分庫已修，保留該成果。留一個產品回歸涵蓋**已有1lesson的真局部狀態**；backend會重跑相同歷史probe。
-- **已知舊demo教材仍是stub。** 完整真R02庫升級後，demo-request-confirmed的Practice worksheet仍為 `https://example.org/worksheet`，不是本地可用教材。R03已要求既有demo stub修復。只對可辨識且未被使用者改過的原demo教材項目做狹窄、冪等替換至可用自製worksheet；不廣泛替换URL。本probe另有普通教師自由自訂同一URL，必須保留，同樣保留credentials/session及其他row。這個既有內容小修不引進外部服務。
+The85-count suite is green,but three probes using real R02 source produced1pass/2fail,separately from suite counts. See R04_API_RESULTS.85green does not establish all legacy compatibility.
 
-## 6. 交回
+- **One-lesson partial school is misclassified complete.** Fault the second real R02 lesson INSERT:three classes,45demo users,one lesson,zero requests,plus ordinary account/session. R04 auth/me200 still leaves one lesson/zero requests while writing seed_complete1. Service418–420's arbitrary lesson>0 plus three demo classes is insufficient. Validate complete structure/relationships; atomically supplement partial data while preserving accounts,sessions,edited lessons/requests/supplements/todos/views. Do not reset,clear,or replay existing arrangements. Preserve the already-fixed zero-lesson case. Add product regression for an actual one-lesson partial state; backend will rerun the same probes.
+- **Known old worksheets remain stubs.** Full real R02 upgrade still gives demo-request-confirmed Practice worksheet URL https://example.org/worksheet. R03 required repairing old known stubs. Narrowly and idempotently replace only recognizable unedited original demo materials with a usable original local worksheet. An ordinary teacher's identical custom URL must remain,as must credentials,sessions,and other rows. No new external service.
 
-實際使用適合的 diagnosing-bugs、React／ai-debt、Playwright、安全資料升級skills；只用能解決本輪問題者。先確認重現，再最小修補。所有受影響測試＋format/lint/types/productAPI、最新85 reviewer計數、build、dev/built E2E實跑；獨立歷史probe三個另外列結果，不混入85總數。SW未變時可沿用固定R04的28結果並明列hash，變更時才重跑。
+## 6. Handback
 
-產品commit後停止編輯，CURSOR_STATUS round5 ready_for_review，產品SHA／真實時間／exit／案例數／未驗列表，同chat交回。GitHub/同一Site發布由Codex驗收後完成；不要push未驗收來源、重建Site、加服務或執行Devpost提交。
+Use relevant diagnosis,React/AI-debt,Playwright,and safe-upgrade skills only. Reproduce first,then repair minimally. Run affected tests,format/lint/types/productAPI,latest85reviewer counts,build,and dev/built E2E. Report the three historical probes separately,not within85. If SW is unchanged,retain fixedR04's28checks with its hash; rerun only if changed.
+
+After product commit,stop editing and report CURSOR_STATUS round5 ready_for_review with actual SHA,time,commands/exits,counts,and limits in the same chat. Codex handles authorized GitHub/same-Site publication after acceptance. No unaccepted push,new Site,services,or Devpost submission.

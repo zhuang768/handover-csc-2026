@@ -96,7 +96,8 @@ try {
   assert.equal(offline.record.redirects.length, 0, "Offline page must not redirect");
   assert.equal(offline.record.finalPath, "/offline.htm");
   assert.match(offline.record.type ?? "", /text\/html/i);
-  assert.match(offline.bytes.toString("utf8"), /交接需要網路/);
+  assert.match(offline.bytes.toString("utf8"), /Handover needs a connection/);
+  assert.doesNotMatch(offline.bytes.toString("utf8"), /\p{Script=Han}/u);
   assert.match(offline.bytes.toString("utf8"), /Nothing was\s+submitted/);
   offline.record.canonicalPath = offline.record.finalPath;
   for (const path of ["/api/auth/me", "/api/workspace"]) {

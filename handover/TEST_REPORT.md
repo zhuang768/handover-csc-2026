@@ -1,5 +1,23 @@
 # Test report
 
+## English-only migration, 2026-10-05
+
+The source interface and project documentation have been converted to English only. The root's actual integrated local results after the update are:
+
+- `npm run format:check`, `npm run lint`, `npm run typecheck`, and `npm run build` — each exit 0.
+- `npm test` — exit 0, 34 passed.
+- Dev Playwright suite — exit 0, 13/13 passed.
+- Direct built Playwright configuration after the build — exit 0, 6/6 passed, 6.7 seconds.
+- Eight English screenshots were regenerated on 2026-10-05; their actual PNG dimensions are recorded in [docs/screenshots/README.md](docs/screenshots/README.md). Student and teacher captures were visually checked for healthy signed-in workspaces.
+
+The new `npm run check:english` command scans maintained Git text, including extensionless configuration and reviewer documents, for Han characters and invalid UTF-8, and is included in CI. Its full-project run passed on 2026-10-05 (224 text files before the final release record). Isolated positive/negative controls also passed: English accepted, an extensionless Han fixture rejected, and invalid UTF-8 rejected. No saved user data is inspected or rewritten by this check.
+
+The English-only app was published as version 5 to the existing public HTTPS address. The authored hosted offline test passed 1/1 in 20.0 seconds, verifying a real SW controller, public-only cache, English offline reload, and failed offline profile save without false success or replay. Strict HTTP resource checks passed, including direct 200/no redirect/HTML for `/offline.htm` and anonymous private API rejection. The original browser with a legacy translated preference automatically displayed English; explicitly reloading the new SW retained its student session and removed the update banner. The pinned English SW passed all 28 independent behavior cases. Physical-phone installation remains unverified. Subsequent source-check/documentation updates preserve the same runtime behavior; final release provenance is recorded separately in the parent repository's `.codex-review/ENGLISH_RELEASE_RESULTS.md`.
+
+The earlier records below retain their historical language coverage and are not presented as newly run English-only hosted checks.
+
+## Earlier verification record
+
 Date: 2026-10-03, Asia/Taipei. Machine: local macOS, Node.js v26.3.0 for the API suite. Project: `handover/`.
 
 ## Command
@@ -86,9 +104,9 @@ From `handover/`, the root ran the same authored `built-offline.spec` against th
 HANDOVER_TEST_ORIGIN=https://handover-campus-2026.ziz81503.chatgpt.site node ./node_modules/@playwright/test/cli.js test -c playwright.hosted.config.ts
 ```
 
-PASS: 1/1, 17.8 seconds. This verified a real service-worker controller, `/offline.htm` as the canonical offline-page cache entry, no old fallback paths or API/private entries, and a real `setOffline` reload showing the bilingual public page. An offline profile save showed an error, did not show Saved, and did not persist after reconnecting. No demo reset or successful profile write was performed. This is a hosted Chromium check, not a physical-phone install.
+PASS: 1/1, 17.8 seconds. This verified a real service-worker controller, `/offline.htm` as the canonical offline-page cache entry, no old fallback paths or API/private entries, and a real `setOffline` reload showing the then-bilingual public page, before the English-only update. An offline profile save showed an error, did not show Saved, and did not persist after reconnecting. No demo reset or successful profile write was performed. This is a hosted Chromium check, not a physical-phone install.
 
-The root additionally used the native browser for a real hosted version 1 → 3 waiting-worker update. An unsaved Mina 7A name change showed only a warning and no reload button. Restoring the original name made the button appear; clicking it caused an actual reload, retained the Mina 7A student session and Traditional Chinese, and removed the update banner. This result used real versions and a real browser controller, not an injected UI seam.
+The root additionally used the native browser for a real hosted version 1 → 3 waiting-worker update. An unsaved Mina 7A name change showed only a warning and no reload button. Restoring the original name made the button appear; clicking it caused an actual reload, retained the Mina 7A student session and the then-selected language, and removed the update banner. This result used real versions and a real browser controller, not an injected UI seam.
 
 ## Round 4, 2026-10-04
 
@@ -101,8 +119,8 @@ From `handover/`:
 - `npm run format:check` — exit 0.
 - `npm run typecheck` — exit 0.
 - `npm run build` — exit 0. Built `dist/server/wrangler.json` has `assets.html_handling` `none`.
-- `npm run test:e2e` — exit 0, 8 passed. Logged-in student, original teacher, and admin at 390, 768, and 1440, in English and Traditional Chinese. Document `scrollWidth` was less than or equal to `clientWidth`. PNG files `05-student-390.png` and `06-install-guide-390.png` measured 390 CSS pixels wide, not 392.
-- `npm run test:e2e:built` — exit 0, 1 passed. Built worker `GET /offline.html` with redirects disabled returned 200 and no `Location`. A controlled page reloaded while offline and showed the public bilingual page. Reconnect did not submit the profile edit that failed offline.
+- `npm run test:e2e` — exit 0, 8 passed. Logged-in student, original teacher, and admin at 390, 768, and 1440, in English and Traditional Chinese in that historical release. Document `scrollWidth` was less than or equal to `clientWidth`. PNG files `05-student-390.png` and `06-install-guide-390.png` measured 390 CSS pixels wide, not 392.
+- `npm run test:e2e:built` — exit 0, 1 passed. Built worker `GET /offline.html` with redirects disabled returned 200 and no `Location`. A controlled page reloaded while offline and showed the public bilingual page in that historical release. Reconnect did not submit the profile edit that failed offline.
 
 From the repo root:
 
@@ -138,7 +156,7 @@ From the repo root:
 
 `npm test` 24 passed. `npm run lint`, `format:check`, `typecheck`, and `build` exited 0. From the repo root, the Codex harness and independent API file exited 0 with 73 passed. Those files were not edited.
 
-Browser on `http://127.0.0.1:5173/`: student Mina on Sunday saw no class today and the next Monday lesson, with the covering teacher and reminder, and no teacher reason. Primary button computed style was white `rgb(255,255,255)` on green `rgb(36,107,86)`. Teacher Maya opened a blank handover; Send stayed disabled and the form named the missing fields in English and, after the language toggle, in Traditional Chinese. Demo buttons disabled while the login request was in flight. Admin Avery’s list had class and teacher filters plus date, status, and search. Widths 390, 768, and 1440 did not add a horizontal page scrollbar. 768 hid the bottom nav.
+Browser on `http://127.0.0.1:5173/`: student Mina on Sunday saw no class today and the next Monday lesson, with the covering teacher and reminder, and no teacher reason. Primary button computed style was white `rgb(255,255,255)` on green `rgb(36,107,86)`. Teacher Maya opened a blank handover; Send stayed disabled and the form named the missing fields in both languages available in that historical release. The English-only update removes that switch; this is not a current operation or a new English-only test result. Demo buttons disabled while the login request was in flight. Admin Avery’s list had class and teacher filters plus date, status, and search. Widths 390, 768, and 1440 did not add a horizontal page scrollbar. 768 hid the bottom nav.
 
 Not claimed: a full keyboard tour of every field, reduced-motion computed style, or a production deploy.
 

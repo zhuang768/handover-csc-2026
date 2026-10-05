@@ -1,113 +1,120 @@
 # Handover — Submission checklist
 
-官方資料核對日：2026-10-03（Asia/Taipei）；交付證據更新日：2026-10-04。這是提交準備文件；交付驗證與 Devpost 表單提交分開記錄，未勾選項目代表尚待完成或本人確認。
+Official information checked: 2026-10-03 (Asia/Taipei). Delivery evidence updated: 2026-10-04. English translation: 2026-10-05. Delivery verification and Devpost form submission are tracked separately. Unchecked items require completion or the participant's confirmation. The recorded test results precede the English-only update; they are historical evidence, not newly run English-only checks.
 
-## 截止時間與倒數
+## Deadline and countdown
 
-| 項目 | 官網時間 | 台灣時間 |
+| Item | Official time | Taiwan time |
 | --- | --- | --- |
-| 提交開始 | 2026-09-04 00:00 PDT | 2026-09-04 15:00 |
-| 平台提交截止 | **2026-10-05 00:00 PDT** | **2026-10-05 15:00** |
-| 建議完成提交 | 提前 3 小時 | **2026-10-05 12:00** |
-| 評審期間 | 10/5 00:00–10/12 00:00 PDT | 10/5 15:00–10/12 15:00 |
-| 公布得獎 | 2026-10-12 08:00 PDT | 2026-10-12 23:00 |
+| Submission opens | 2026-09-04 00:00 PDT | 2026-09-04 15:00 |
+| Platform submission deadline | **2026-10-05 00:00 PDT** | **2026-10-05 15:00** |
+| Target submission time | Three hours early | **2026-10-05 12:00** |
+| Judging period | 10/5 00:00–10/12 00:00 PDT | 10/5 15:00–10/12 15:00 |
+| Winners announced | 2026-10-12 08:00 PDT | 2026-10-12 23:00 |
 
-時間依[官方平台日程](https://csc-back-to-school.devpost.com/details/dates)。2026 年 10 月 PDT 為 UTC−7，台灣為 UTC+8，差 15 小時。
+Times come from the [official platform schedule](https://csc-back-to-school.devpost.com/details/dates). PDT in October 2026 is UTC−7; Taiwan is UTC+8, a 15-hour difference.
 
-**官網矛盾仍存在：**[Rules](https://csc-back-to-school.devpost.com/rules) 內文寫 10/5 **12:00 PM Pacific**，換算為台灣 10/6 03:00；平台日程及頁首卻寫 10/5 **12:00am PDT**。準備與提交一律採較早的 **10/5 15:00**，不要依賴較晚時間仍能送出。若本人需要確認，可詢問官網列出的主辦信箱 webbcsc@gmail.com；本專案未代為寄信。
+**Deadline inconsistency recorded on the check date:** the [rules](https://csc-back-to-school.devpost.com/rules) say October 5 at **12:00 PM Pacific**, which is October 6 at 03:00 Taiwan time. The platform schedule and page header say October 5 at **12:00am PDT**. Plan and submit by the earlier deadline, **October 5 at 15:00 Taiwan time**. Do not rely on a later submission being accepted. The participant can contact the organizer at webbcsc@gmail.com if clarification is needed; this project has not sent an email on their behalf.
 
-倒數須用當下台灣時間重算，不把「還有兩天」當固定數字。瀏覽器 console 可計算剩餘小時：
+Recalculate the countdown using the current time rather than treating “two days left” as a fixed value. The browser console can calculate the remaining hours:
 
 ```js
 const deadline = new Date("2026-10-05T15:00:00+08:00");
 console.log(Math.max(0, (deadline.getTime() - Date.now()) / 3_600_000).toFixed(1));
 ```
 
-## 資格與作品來源：本人確認
+## Eligibility and project origins: participant confirmation
 
-- [ ] 每位隊員均為 **13–18 歲高中生**；個人或 **1–4 人**。根目錄舊筆記的「16 歲」敘述不是本次身分驗證結果。
-- [ ] 本人確認居住地、活動例外及 Devpost 帳號條件；未成年者確認具有合法父母／監護人同意。
-- [ ] 實質開發在正式比賽期間完成；已列出賽前程式、模板、資料及設計來源。
-- [ ] 所有展示資料為合成資料；若使用真實資料，已取得必要許可。
-- [ ] 作品及文案未把作弊、傷害或騷擾當成用途。
+- [ ] Every teammate is a **high-school student aged 13–18**; the entry is individual or a **team of 1–4**. The historical note describing the participant as 16 is not current identity verification.
+- [ ] Confirm residence, event exceptions, and Devpost account requirements. Minors must confirm legally valid parent or guardian consent.
+- [ ] Substantial development took place during the official competition period. Pre-existing code, templates, data, and design sources are disclosed.
+- [ ] All demonstration data is synthetic; any use of real data has the necessary permission.
+- [ ] The project and description do not promote cheating, harm, or harassment.
 
-資格、期間及資料要求依[正式規則](https://csc-back-to-school.devpost.com/rules)；帳號與未成年同意依[Devpost 使用條款](https://info.devpost.com/legal/terms-of-service)。是否符合資格必須由本人確認。
+Eligibility, development-period, and data requirements follow the [official rules](https://csc-back-to-school.devpost.com/rules). Account and minor-consent requirements follow the [Devpost terms](https://info.devpost.com/legal/terms-of-service). Eligibility must be confirmed by the participant.
 
-## 必交內容
+## Required submission content
 
-下列勾選表示已填入並確認 Devpost 表單；網站與 repo 已備妥，不代表表單已送出。
+Check these items only after entering and confirming them in the Devpost form. Having a website and repository ready does not mean the form has been submitted.
 
-- [ ] **名稱：** Handover。
-- [ ] **問題與對象：**調課資訊分散；原授課老師、接課老師、學生及教務處需要同一份交接紀錄。
-- [ ] **作品說明：**填入 [Devpost 文案](docs/DEVPOST_SUBMISSION.md)，只保留驗證過的功能主張。
-- [ ] **展示證據至少一種：**可開啟的 demo、網站、影片、截圖、照片或其他清楚的證據。
-- [ ] **工具與資源：**框架、函式庫、平台、外部素材與既有程式的來源及授權。
-- [ ] **AI 揭露：**填入 [AI disclosure](docs/AI_DISCLOSURE.md)，能說明 AI 做了哪些工作。
-- [ ] **隊員資訊：**本人姓名／Devpost profile 與所有隊員加入提交。
-- [ ] **原始碼／建置／設計檔：**本案有原始碼，應附評審可存取的 repo 連結及重建方式。
-- [ ] 用無痕視窗逐一開啟所有提交連結，確認評審無需私人帳號或授權。
+- [ ] **Name:** Handover.
+- [ ] **Problem and audience:** scattered class-change information; original teachers, receiving teachers, students, and the school office need one shared handover record.
+- [ ] **Project description:** enter the [Devpost copy](docs/DEVPOST_SUBMISSION.md), retaining only verified feature claims.
+- [ ] **At least one form of demonstration evidence:** an accessible demo, website, video, screenshots, photographs, or other clear evidence.
+- [ ] **Tools and resources:** frameworks, libraries, platforms, outside assets, prior code, sources, and licenses.
+- [ ] **AI disclosure:** include the [AI disclosure](docs/AI_DISCLOSURE.md) and explain AI's contributions.
+- [ ] **Team information:** the participant's name and Devpost profile, with every actual teammate added to the submission.
+- [ ] **Source, build, or design files:** this project has source code, so include a judge-accessible repository link and reconstruction instructions.
+- [ ] Open every submitted link in a private browser window and confirm that judges do not need a private account or authorization.
 
-依[主辦提交清單](https://csc-back-to-school.devpost.com/updates/46587-one-week-left-submission-checklist)。平台實際提交表單若另有必填欄位，仍需依表單完成。
+This follows the [organizer's submission checklist](https://csc-back-to-school.devpost.com/updates/46587-one-week-left-submission-checklist). Complete any additional required fields shown by the actual platform form.
 
-## 選填與獎項參與
+## Optional content and prize participation
 
-**Demo 影片為選填。** 官網鼓勵 1–2 分鐘，未列 3 分鐘硬性上限；本案[影片腳本](docs/DEMO_SCRIPT.md)採 2 分鐘，符合使用者要求的 3 分鐘內。公開網站不是一般提交唯一可接受的證據，但本案交付目標仍包含可用網址。[官網介紹](https://csc-back-to-school.devpost.com/)
+**A demo video is optional.** The organizers encourage 1–2 minutes and do not state a hard three-minute limit. The [video script](docs/DEMO_SCRIPT.md) targets two minutes, within the requested maximum of three minutes. A public website is not the only accepted form of demonstration evidence, but a working URL remains part of this project's delivery. [Competition overview](https://csc-back-to-school.devpost.com/)
 
-| 獎項 | 現金 | 名額 |
+| Prize | Cash | Awards |
 | --- | ---: | ---: |
 | CSC Innovation Gold | US$250 | 1 |
 | CSC Innovation Silver | US$100 | 1 |
 | CSC Innovation Bronze | US$50 | 1 |
-| Honorable Mention | 未列現金 | 5 |
+| Honorable Mention | No cash listed | 5 |
 
-另有贊助額度／訂閱，屬非現金且需符合各服務條件；不應把它們當可直接兌現的獎金。Render 獎勵要求作品使用 **Render Workflows**，本案 Cloudflare 架構不能因此自稱符合。完整細目及資格見[獎項區](https://csc-back-to-school.devpost.com/#prizes)。
+Sponsor credits and subscriptions are non-cash benefits subject to each service's requirements; do not present them as redeemable cash prizes. The Render reward requires **Render Workflows**. This project's Cloudflare architecture does not establish eligibility for that reward. See the [prize section](https://csc-back-to-school.devpost.com/#prizes) for details and conditions.
 
-- [ ] 本人決定是否在 Devpost 勾選適用的 **Sponsor / Special Prizes**；使用贊助工具不會自動參加獎項。[主辦提醒](https://csc-back-to-school.devpost.com/updates/46517-two-weeks-left-we-re-just-past-halfway)
-- [ ] 若選 Innovation Award／Honorable Mention，本人同意提交後公開原始碼或作品、提供公開連結、允許 CSC 在自身管道宣傳，並能解釋作品與 AI 使用。[獎項規則](https://csc-back-to-school.devpost.com/rules)
-- [ ] 若領取贊助獎勵，本人另確認年齡、帳號、監護人同意與兌換條件。
+- [ ] Decide personally whether to select applicable **Sponsor / Special Prizes** in Devpost. Using a sponsor tool does not automatically enter a prize category. [Organizer reminder](https://csc-back-to-school.devpost.com/updates/46517-two-weeks-left-we-re-just-past-halfway)
+- [ ] For Innovation Award or Honorable Mention participation, agree to the required public source or project link, organizer publicity, and explanation of the project and AI use. [Prize rules](https://csc-back-to-school.devpost.com/rules)
+- [ ] Before claiming sponsor benefits, confirm age, account, guardian-consent, and redemption requirements separately.
 
-## 評分與應提供的證據
+## Judging criteria and evidence
 
-官網列出 **Learning、Design、Creativity、Functionality、Impact** 五項，未公布百分比權重；不要把附件中的三項簡稱當作完整評分表。[評分標準](https://csc-back-to-school.devpost.com/#judging-criteria)
+The organizers list **Learning, Design, Creativity, Functionality, and Impact**, without published percentage weights. Do not substitute the attachment's three abbreviated categories for the complete rubric. [Judging criteria](https://csc-back-to-school.devpost.com/#judging-criteria)
 
-| 標準 | Handover 的展示策略 |
+| Criterion | Handover demonstration strategy |
 | --- | --- |
-| Learning | 本人解釋必填交接、權限、衝堂檢查與狀態機的實作取捨，說明 AI 貢獻。 |
-| Design | 讓不同角色的下一步清楚可見，展示手機版與缺欄位提示。 |
-| Creativity | 展示「交接完整才能送出」的強制流程，直接回應調課資訊斷裂。 |
-| Functionality | 畫面連續走完老師送出、接課確認、學生準備與教務總覽。 |
-| Impact | 明確指出受益對象；沒有試辦數據前，不寫節省時間或改善成績的百分比。 |
+| Learning | Explain required handover fields, permissions, conflict checks, state transitions, implementation tradeoffs, and AI contributions. |
+| Design | Make each role's next action clear; show the mobile layout and missing-field feedback. |
+| Creativity | Show the enforced rule that a complete handover is required before submission, addressing fragmented class-change information. |
+| Functionality | Walk continuously through teacher submission, receiving-teacher confirmation, student preparation, and the school-office overview. |
+| Impact | Identify the intended beneficiaries. Do not claim percentage time savings or improved grades without pilot data. |
 
-評審名單會變動，提交前可在[官網 Judges 區](https://csc-back-to-school.devpost.com/#judges)再次檢視。2026-10-03 顯示 CSC 校內評審及外部技術／產品評審；不需要依個別評審設計特殊登入條件。
+Judges can change; review the [Judges section](https://csc-back-to-school.devpost.com/#judges) before submitting. On 2026-10-03 it listed CSC school judges and external technical and product judges. No special login conditions are needed for individual judges.
 
-## 已完成的交付證據
+## Completed delivery evidence before the English-only update
 
-- [x] 正式 HTTPS 網站已發布並開放公開存取：[Handover](https://handover-campus-2026.ziz81503.chatgpt.site)。
-- [x] 原始碼已依既有授權公開：[zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026)。
-- [x] 先前版本 GitHub CI 成功：[實際 run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969)；最新修補與文件的 CI 須依[實際 workflow](https://github.com/zhuang768/handover-csc-2026/actions)結果確認。
-- [x] Round 5 本機 33 個產品測試、85 個獨立 reviewer 測試、9 個 dev E2E、6 個 built E2E，以及固定版本的 3 個真實 R02 歷史升級 probe 通過；Round 6 離線頁修補另通過 34 個產品測試及全部 6 個 built E2E，範圍見 [TEST_REPORT.md](TEST_REPORT.md)。
-- [x] 正式 HTTPS 的四個 demo session 走完衝堂 409、Draft → Pending → Declined → 修改重送 → Confirmed → Cancelled、學生隱私／待辦保存、課表恢復及登出撤銷；Secure／HttpOnly cookie 與私人回應 `no-store` 已檢查。此流程在網站開放公開存取前執行，未在正式庫測一般註冊或 demo 重置。
-- [x] 開放公開存取後，匿名根頁 200、匿名 API 401／`no-store`、manifest、四張 PNG icon 與 SW MIME 已檢查。
-- [x] 正式 v3 canonical `/offline.htm` 嚴格 HTTP 檢查通過：200、無轉址、`text/html`、設計頁內容；同一個 authored 離線測試在真 HTTPS 通過 1/1，確認真 controller／公共 cache、雙語斷網 reload，以及離線儲存失敗不假報成功、不於重連後保存。未 reset 或成功寫入 profile。
-- [x] 原生瀏覽器完成真實 v1 → v3 waiting-worker 更新：未存的 Mina 7A 修改只顯示警告；還原原值後可更新，真 reload 保留學生 session／繁中且更新提示消失。
-- [ ] 實體 iPhone／Android 加入主畫面及 standalone 啟動；桌面手機 viewport 不算真機安裝證據。
+- [x] The HTTPS website was published with public access: [Handover](https://handover-campus-2026.ziz81503.chatgpt.site).
+- [x] Source was made public under the existing authorization: [zhuang768/handover-csc-2026](https://github.com/zhuang768/handover-csc-2026).
+- [x] An earlier version passed GitHub CI: [actual run](https://github.com/zhuang768/handover-csc-2026/actions/runs/37145231969). Check the [actual workflows](https://github.com/zhuang768/handover-csc-2026/actions) for later repairs and documentation changes.
+- [x] Round 5 passed 33 local product tests, 85 independent reviewer tests, 9 dev E2E cases, 6 built E2E cases, and 3 genuine R02 historical-upgrade probes against a pinned version. Round 6's offline repair passed 34 product tests and all 6 built E2E cases. See [TEST_REPORT.md](TEST_REPORT.md) for scope.
+- [x] Four HTTPS demo sessions completed conflict 409, Draft → Pending → Declined → revised Pending → Confirmed → Cancelled, student privacy and todo persistence, timetable restoration, and logout revocation. Secure/HttpOnly cookies and private-response `no-store` were checked. This ran before public access was enabled; ordinary registration and demo reset were not exercised in production.
+- [x] After public access was enabled, anonymous root access returned 200; anonymous API access returned 401 with `no-store`; the manifest, four PNG icons, and service-worker MIME were checked.
+- [x] Historical version 3's canonical `/offline.htm` passed strict HTTP checks: 200, no redirect, `text/html`, and the designed page. The same authored offline test passed 1/1 against actual HTTPS, checking a real controller, public cache, the then-bilingual offline reload, and an offline save that neither reported false success nor persisted after reconnecting. No reset or successful profile write was performed.
+- [x] A native browser completed a real version 1 → 3 waiting-worker update. An unsaved Mina 7A change showed only a warning; restoring the original value allowed a real reload that retained the student session and the then-selected language and dismissed the banner.
+- [ ] Physical iPhone/Android Add to Home Screen and standalone launch. A desktop mobile viewport is not physical-device installation evidence.
 
-## 品質與交付驗證
+## English-only local verification, 2026-10-05
 
-- [x] [TEST_REPORT.md](TEST_REPORT.md) 記錄端到端、退回重送、衝堂、API 越權、桌面多尺寸及本機 demo 重置結果，並區分正式環境與真機未驗範圍。
-- [x] 格式、lint、型別、單元／整合測試、build 與 CI 結果如實記錄。
-- [x] 已在正式 HTTPS 走完主流程，不能只用本機測試取代；公開匿名與離線檢查範圍另列於上方。
-- [ ] 本人影片只展示已驗證功能，並逐一核對畫面操作與結果。
-- [x] README 包含網址、demo 登入、安裝、環境變數、seed、授權與 Known Limitations。
-- [x] 密碼重設清楚標示使用恢復碼，未宣稱已實作 Email 寄信。
-- [x] [實際截圖清單](docs/screenshots/README.md) 有 8 張合成資料截圖；沒有學生真實姓名、敏感資訊或金鑰。
-- [ ] 影片操作與文案對得上部署版本，並附短 AI 使用說明。
+- [x] The root ran formatting, lint, types, build, and 34 product tests; all exited 0. The dev browser suite passed 13/13 and the direct built suite passed 6/6 in 6.7 seconds.
+- [x] Eight actual English screenshots were regenerated on 2026-10-05. Measured dimensions are in [the screenshot inventory](docs/screenshots/README.md); student and teacher captures were visually checked for signed-in workspaces.
+- [ ] Run the full-repository `npm run check:english` scan after reviewer-document translation is complete.
+- [ ] Verify the hosted English-only update. Earlier hosted results above remain historical evidence, not a new English-only production pass.
 
-## 只有本人能完成的最後步驟
+## Quality and delivery verification
 
-- [ ] 確認資格、隊員、Devpost 條款、監護人同意及獎項宣傳選項。
-- [ ] 錄製／上傳影片，確認對外分享可開啟。
-- [ ] 在 Devpost 填入檔案內文、網址與隊員，選擇獎項，按正式提交／發布。
-- [ ] 於 **10/5 12:00** 目標時間前確認成功狀態，保存提交頁與成功畫面；最晚不得超過 **10/5 15:00**。
+- [x] [TEST_REPORT.md](TEST_REPORT.md) records historical end-to-end, decline/resubmit, conflict, authorization, desktop viewport, and local demo-reset results, separating hosted and physical-device limits.
+- [x] Formatting, lint, types, unit/integration tests, build, and CI results are recorded accurately for their tested versions.
+- [x] The main workflow was exercised on HTTPS, rather than only locally; public anonymous and offline-check scope is listed above.
+- [ ] The participant's video shows only verified features, with every visible operation and result checked against the final English-only release.
+- [x] README includes the URL, demo access, installation, environment variables, seed behavior, licensing, and known limitations.
+- [x] Password reset clearly uses recovery codes and does not claim outbound email.
+- [x] The [actual screenshot inventory](docs/screenshots/README.md) contains eight regenerated English-only synthetic-data captures, with no real student names, sensitive information, or secrets.
+- [ ] Match the video and copy to the deployed version and include a short AI-use statement.
 
-主辦提醒須完成提交及發布，而非只留草稿。[最後提交提醒](https://csc-back-to-school.devpost.com/updates/45925-3-days-remaining-final-call-for-submissions)。本清單勾選或 Git commit 不等於 Devpost 已收件。
+## Final steps only the participant can complete
+
+- [ ] Confirm eligibility, teammates, Devpost terms, guardian consent, and prize-publicity choices.
+- [ ] Record/upload the optional video and confirm its public playback link.
+- [ ] Enter the text, URLs, and teammates in Devpost, choose prizes, and submit/publish the entry.
+- [ ] Confirm successful submission before the **October 5 at 12:00 Taiwan time** target and save the submission page and success screen. Do not exceed **October 5 at 15:00 Taiwan time**.
+
+The organizers require a completed and published submission, not only a draft. [Final submission reminder](https://csc-back-to-school.devpost.com/updates/45925-3-days-remaining-final-call-for-submissions). Checking this list or creating a Git commit does not mean Devpost has received the entry.
