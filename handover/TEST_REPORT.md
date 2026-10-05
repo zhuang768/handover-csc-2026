@@ -10,7 +10,11 @@ The source interface and project documentation have been converted to English on
 - Direct built Playwright configuration after the build — exit 0, 6/6 passed, 6.7 seconds.
 - Eight English screenshots were regenerated on 2026-10-05; their actual PNG dimensions are recorded in [docs/screenshots/README.md](docs/screenshots/README.md). Student and teacher captures were visually checked for healthy signed-in workspaces.
 
-The new `npm run check:english` command scans maintained Git text, including reviewer documents, for Han characters and is included in CI. Its full-project run is pending completion of the reviewer-document translations. Hosted verification of the English-only update is still pending. The earlier records below retain their historical language coverage and are not presented as newly run English-only hosted checks.
+The new `npm run check:english` command scans maintained Git text, including extensionless configuration and reviewer documents, for Han characters and invalid UTF-8, and is included in CI. Its full-project run passed on 2026-10-05 (224 text files before the final release record). Isolated positive/negative controls also passed: English accepted, an extensionless Han fixture rejected, and invalid UTF-8 rejected. No saved user data is inspected or rewritten by this check.
+
+The English-only app was published as version 5 to the existing public HTTPS address. The authored hosted offline test passed 1/1 in 20.0 seconds, verifying a real SW controller, public-only cache, English offline reload, and failed offline profile save without false success or replay. Strict HTTP resource checks passed, including direct 200/no redirect/HTML for `/offline.htm` and anonymous private API rejection. The original browser with a legacy translated preference automatically displayed English; explicitly reloading the new SW retained its student session and removed the update banner. The pinned English SW passed all 28 independent behavior cases. Physical-phone installation remains unverified. Subsequent source-check/documentation updates preserve the same runtime behavior; final release provenance is recorded separately in the parent repository's `.codex-review/ENGLISH_RELEASE_RESULTS.md`.
+
+The earlier records below retain their historical language coverage and are not presented as newly run English-only hosted checks.
 
 ## Earlier verification record
 

@@ -11,17 +11,24 @@ const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
   cwd: root, encoding: "utf8",
 }).split("\0").filter(Boolean);
-const textExtensions = new Set([
-  ".md", ".ts", ".tsx", ".mts", ".mjs", ".js", ".json", ".css",
-  ".htm", ".html", ".yml", ".yaml", ".txt", ".toml", ".sql", ".svg", ".example",
+const binaryExtensions = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2",
+  ".ttf", ".otf", ".pdf", ".zip", ".gz", ".mp4", ".mov", ".mp3", ".wav",
 ]);
 const failures = [];
 let checked = 0;
 for (const file of new Set(files)) {
   const absolute = path.join(root, file);
-  if (!textExtensions.has(path.extname(file)) || !existsSync(absolute)) continue;
+  if (binaryExtensions.has(path.extname(file)) || !existsSync(absolute)) continue;
   checked++;
-  const lines = readFileSync(absolute, "utf8").split("\n");
+  let source;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(absolute));
+  } catch {
+    failures.push(`${file}: invalid UTF-8`);
+    continue;
+  }
+  const lines = source.split("\n");
   for (let index = 0; index < lines.length; index++) {
     if (/\p{Script=Han}/u.test(lines[index])) failures.push(`${file}:${index + 1}`);
   }
