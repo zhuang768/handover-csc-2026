@@ -1,9 +1,9 @@
 {
   "status": "accepted",
-  "round": 6,
-  "updatedAt": "2026-10-04T03:12:00+08:00",
+  "round": 7,
+  "updatedAt": "2026-10-05T12:08:00+08:00",
   "projectPath": "/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover",
-  "gitHead": "87bfc8a1de1692c0d43e15679dc9c88bafa9b614",
+  "gitHead": "2bb18840eaf3d7ded094cc6d23403043e68b5ec5",
   "completedRequirements": [
     "R05 atomic legacy repair preserves established lessons, ordinary accounts, sessions and relations",
     "Exact known demo material stub repaired without changing custom URLs",
@@ -13,7 +13,11 @@
     "Product33 / independent85 / dev9 / built6 / historical3 passed; format/lint/types/build passed",
     "Production canonical offline.htm HTTP200/noLocation/HTML passed",
     "True public HTTPS SW cache/controller/offline navigation and failed-save nonpersistence passed1/1",
-    "Real published v1-to-v3 dirty-profile update guard, explicit reload and retained session verified"
+    "Real published v1-to-v3 dirty-profile update guard, explicit reload and retained session verified",
+    "English-only UI, templates, offline assets and all maintained documentation; language switch/CJK font removed",
+    "Legacy language preferences migrate to English; malformed/read-denied/write-denied storage stays usable",
+    "English unit34 / dev13 / built6 / pinnedSW28 / hosted1 passed; maintained text guard added to CI",
+    "Exact accepted English app tree published as existing public Sites version6"
   ],
   "publicUrl": "https://handover-campus-2026.ziz81503.chatgpt.site",
   "githubUrl": "https://github.com/zhuang768/handover-csc-2026",

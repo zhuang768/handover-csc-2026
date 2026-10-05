@@ -1,45 +1,39 @@
-# R05 後端來源獨立 review
+# R05 independent backend source review
 
-日期：2026-10-04（Asia/Taipei）。僅唯讀 service／產品 API test diff，未改 source、執行共享 API／moving tests、新增 suite／glob 或操作外部服務。
+Historical focused read-only review, 2026-10-04 Asia/Taipei. The reviewer read service/API-test diffs without edits, shared moving tests, new suites/globs, or external service operations.
 
-**Focused source review 通過：第一次找到的既有課堂覆寫已由 backend 局部修正，新 frozen blobs 前後一致；沒有新增具體來源缺陷。** 版本 marker、batch／token、原安排保留與窄 stub CAS 均已複查。這是來源判定，runtime／歷史資料升級／正式發布仍採 root 各自實跑的結果。
+Result: passed after the first frozen source's existing-lesson overwrite was locally repaired. Replacement blobs stayed identical before/after rereads. No new concrete source defect remained. Runtime, historical upgrade, and publication rely on root's separate execution.
 
-## 第一份凍結來源
+## First frozen source
 
-- base product：`6b7b7cd734e9af06785d7f854d75dc8f3a160c6f`。
-- service blob：`a80f03a850e4c1a081b65ebf700b8f5876ea92a4`。
-- API test blob：`15ed4055ac5928d70467bb48d2434a8d7b3032b4`。
-- backend 釋放時間：2026-10-03 18:20:32 UTC；起始 `git hash-object handover/server/service.ts handover/tests/api.test.ts` exit 0，兩個值吻合。
-- 已逐段讀取與 base 的兩檔 diff；作者回報 API 26／26、85 suite 85／85 與局部格式／lint／types 成功，這些不是本 reviewer 執行的結果。三個 true historical probes 由 root 在最終版本 pin 後另驗，不混入 85 計數。
+Base `6b7b7cd734e9af06785d7f854d75dc8f3a160c6f`; service `a80f03a850e4c1a081b65ebf700b8f5876ea92a4`; tests `15ed4055ac5928d70467bb48d2434a8d7b3032b4`. Backend released source at 2026-10-03 18:20:32 UTC. Initial hash-object matched both. The reviewer read the complete two-file diff. Author-reported 26 API/85 independent plus format/lint/types were not reviewer executions; three genuine historical probes were reserved for root after pinning and separate from 85 counts.
 
-## 已核對的修法
+## Reviewed repairs
 
-1. `schoolReady` 同時要求 `seed_complete=1` 與 `seed_revision=2`，R04 的舊 completion marker 不再讓一堂課的局部舊庫直接 return。修補與兩個完成 marker 置於同一 D1 batch；失敗時不會只留下本版 completion marker。
-2. 原 demo lesson IDs 帶不可變原 seed 日期，從最早有效日期推回原 Monday；不拿可能已被合法移動的 current lesson date 當 seed 起點。zero-lesson 情境才用 default Monday。
-3. classes／users 只補缺資料；lesson `WHERE NOT EXISTS(id) ... ON CONFLICT(id) DO NOTHING` 不更新既有 row。它不會把 unique teacher-slot 錯誤像一般 OR IGNORE 一樣吞掉後假裝完成。
-4. 已存在的 sample request ID 整個跳過，避免重播該 request 的 lesson 改動、timeline／notification／lock。read snapshot 後另有 caller 插入的 request，也由 INSERT 的 NOT EXISTS／ID conflict 保護。
-5. 每次補樣本生成獨立 token，新 request 存入該 token；seed timeline、notification、Pending locks 與 Confirmed／Completed lesson side effects 都以同一 request ID＋token gate。競爭輸掉的 batch 不會套用 winner 的樣本 side effects。此 gate 保護併發插入，並不單獨證明 lesson 本身沒有既有使用者改動，見下項。
-6. stub 修復僅限七個 known demo IDs＋`is_demo=1`＋原 default title／URL＋原兩個 material keys；只換那個 URL、保留整份 handover 其他欄位。UPDATE 再 CAS 原 `handover_json`，避免覆寫 read 後的新內容。ordinary request 即使同 title／URL 也不在此範圍；已改 title 或增加 metadata 的 demo material 保留。
-7. 兩個新增產品案例涵蓋 one-lesson partial rollback／parallel repair／marker／account-session preservation，以及精確 demo stub／ordinary same URL／edited material／idempotency。直接注入的局部狀態是產品回歸 fixture，不能冒稱真 R02 service 故障產物；真歷史 probe 仍另列。
+1. schoolReady requires seed_complete=1 and seed_revision=2. An old R04 completion marker cannot skip a one-lesson partial DB. Repair and both markers share one D1 batch; failure cannot leave only the new marker.
+2. Immutable dates in original demo lesson IDs determine original Monday using earliest valid seed date, rather than a legally moved current date. Default Monday is only for zero lessons.
+3. Classes/users fill missing rows only. Lesson WHERE NOT EXISTS(id)/ON CONFLICT(id) DO NOTHING preserves existing rows and does not swallow teacher-slot uniqueness faults as generic OR IGNORE could.
+4. Existing sample request IDs are skipped entirely, preventing lesson/timeline/notification/lock replay. Concurrent post-read insertion is protected by NOT EXISTS/ID conflict.
+5. Each repair creates a unique token stored on newly inserted sample requests. Timeline, notifications, pending locks, and confirmed/completed lesson effects require the same request ID/token; a losing batch cannot apply winner effects. This alone does not establish lesson-preservation safety.
+6. Stub repair is restricted to seven known demo IDs, is_demo=1, default title/URL, and exactly the original two material keys. Only URL changes; handover_json CAS prevents concurrent overwrite. Ordinary same-URL records, edited titles, and additional metadata survive.
+7. Product regressions cover partial rollback/parallel repair/markers/accounts/sessions and exact demo stub/ordinary/edited materials/idempotency. Injected fixtures are not falsely called genuine R02 service faults.
 
-## 第一次來源問題：已修正
+## First finding, then repaired
 
-第一 frozen blob 的 [service.ts:905](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:905) 在新缺失 Confirmed／Completed sample 插入勝出後，UPDATE 該 lesson 的 teacher／date／period／room。WHERE 只有 lesson ID 與新 request token，沒有確認該 lesson 是本次剛補入或仍是原模板安排。
+First service `:905` updated teacher/date/period/room after a new missing Confirmed/Completed sample won insertion. WHERE checked lesson ID/token only, not whether the lesson was newly inserted or still matched immutable template.
 
-具體路徑：真正 R02 逐筆 seed 在 Class 7A Friday P4 Math lesson 之後、sample requests 之前中斷；舊 `seeded` marker 讓舊 API 仍可使用該既有課堂。教師透過另一筆合法 handover 修改該 lesson 安排，而 known `demo-request-confirmed` 仍缺失。R05 的 lesson INSERT 雖不覆寫既有 ID，稍後新 demo sample 勝出卻可把 room 等安排覆回模板（例如回到 A-201），與 R05「部分舊庫保留改過的 lesson」要求衝突。
+Concrete path: genuine R02 sequential seed could stop after Class 7A Friday P4 Math but before samples. Old seeded marker allowed normal use. A legitimate handover could edit that existing lesson while demo-request-confirmed remained absent. Although R05 lesson INSERT preserved existing IDs, later winning sample effects could restore template room such as A-201, violating partial-upgrade preservation.
 
-第一次發現是 **source trace，未在本 reviewer 的 runtime 重現**；不能冒稱歷史 probe 已測這條路徑。當時作者新增 case 保留的是最早 Monday P1 lesson，不是此 Confirmed／Completed sample 的 lesson，故舊 green 不排除此分支。root 接受來源問題並授權 backend 局部修正；本 reviewer 沒有增加測試 gate 或修改 source。
+This was a source trace, not this reviewer's runtime reproduction. Existing tests preserved earliest Monday P1 rather than the sample's lesson, so green tests did not exclude the branch. Root accepted the finding and authorized a focused backend repair; reviewer added no release gate or source changes.
 
-## 新 frozen blobs 與局部複查
+## Replacement frozen source
 
-- service：`145faf7f27e82e44f2e56ea44e4ca33993c47932`。
-- API test：`a43383679244dae8ea2171f682e3e486695d8b13`。
-- 前後三次 `git hash-object handover/server/service.ts handover/tests/api.test.ts` 均 exit 0／值相同；其他代理的 frontend 變更不納入此兩檔 frozen review。
-- [service.ts:758](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:758) 讀 existing demo lesson map；[service.ts:836](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:836) 比對 teacher／date／period／room 與 immutable seed 計畫。已有改動時，新補樣本改為 inactive `Cancelled`，original／target 快照採 current lesson，而不是聲稱新的確認。
-- 因 side effects 依本次 `status` 分支，changed lesson 不會進 Pending locks／notifications 或 Confirmed／Completed lesson UPDATE。仍可補到完整 lesson inventory／missing sample IDs，保留真實已建立的 arrangement；已存在 request IDs 仍整份跳過。
-- 產品 case 已擴充：20-lesson partial fixture、缺 known confirmed sample，以真正產品 API 建立 move→submit→accept→Completed→supplement；負對照明確斷言 date／period 已不同。升級後逐 row 保留 lessons、established request 與 timeline／supplement／notification，新的 known sample 為 Cancelled／current snapshot、沒有 active lock 或 submitted／confirmed／completed event。這是有真 API 操作的產品 fixture，仍不是 true historical R02 service probe。
-- [service.ts:2441](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/server/service.ts:2441) 的普通 API route 在任何正常 mutation 之前先 await `seedIfEmpty`。另一 repair 的敗方樣本 INSERT／side effects 仍受自己 token gate；不為未約定外部 DB writes 想像另設 release gate。
+Service `145faf7f27e82e44f2e56ea44e4ca33993c47932`; tests `a43383679244dae8ea2171f682e3e486695d8b13`. Three hash-object checks matched before/after. Concurrent frontend changes were outside this two-file freeze.
 
-root 另明確回報最終本機整套：33 product tests、format／lint／types／build exit 0；85 independent suite exit 0／85 pass／0 skip；dev E2E 9／9 exit 0；built E2E 6／6 exit 0、offline direct 200／no Location；四個 session 的 built Worker lifecycle／privacy／todo／restore／logout preflight 通過。這些不是本 reviewer 執行的測試。
+Service `:758` reads existing demo lessons; `:836` compares teacher/date/period/room to immutable seed. Changed lessons receive missing samples as inactive Cancelled, with original/target snapshots from current arrangement. Status branching prevents pending locks/notifications or confirmed/completed updates, while restoring full lesson inventory/missing IDs. Existing request IDs still skip all repair replay.
 
-true historical 三 probes 要等 root commit／pin 後執行，沒有在本報告先寫通過；正式 HTTPS／GitHub CI／實體手機另驗。此局部 source review 沒有未關閉 finding，root 可整合兩份交付文件並 commit 已驗收產品。
+The expanded product case uses a 20-lesson partial fixture and missing known confirmed sample, then real move/submit/accept/Completed/supplement APIs. Negative controls assert changed date/period. Upgrade preserves every lesson, established request, timeline/supplement/notification; the new sample is Cancelled/current snapshot with no active lock or submitted/confirmed/completed event. It remains a product fixture, distinct from genuine historical R02 probes.
+
+Normal routes at `:2441` await seedIfEmpty before mutation. Losing repair insertion/effects retain token gating; no speculative gate for unspecified direct DB writes was introduced.
+
+Root separately reported 33 product tests, formatting/lint/types/build, 85 independent counts (zero skips), nine dev/six built tests, offline direct 200/no Location, and a four-session lifecycle/privacy/todo/restore/logout Worker preflight passing. These were not reviewer runs. Genuine historical probes waited for root's fixed commit; public HTTPS/GitHub CI/physical phones remained separate. No finding remained open, so root could integrate delivery docs and commit.

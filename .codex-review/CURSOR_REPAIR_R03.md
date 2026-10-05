@@ -1,60 +1,61 @@
-# Handover：第3輪具體修正與可重跑的交付驗證
+# Handover — round 3 repairs and repeatable delivery checks
 
-第2輪已獨立驗收，尚未通過。延續同一Cursor對話、branch與產品，不重建專案／Site，不再問已核准視覺方向。產品stable `73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a`，status-only HEAD `1f1fe7704f92cdc14dd6a819aedeacec909a2f2c`。
+Historical prompt, translated on 2026-10-05. Language requirements and open defects reflect this round, before the later English-only direction.
 
-請先完整讀根`.codex-review/R02_API_RESULTS.md`、`R02_FRONTEND_RESULTS.md`、`R02_BROWSER_RESULTS.md`、`R02_DOCS_MIGRATION_RESULTS.md`。原ACCEPTANCE、VISUAL_ACCEPTANCE和R02B視覺要求仍生效。已修R01四類漏洞、七欄gate、草稿ID、Editor key、學生原因遮蔽/TODO持久化、admin組合篩選、亮色主要按鈕對比等都通過，保留成果；不要重列已解或以舊報告覆蓋新事實。
+Round 2 independent acceptance did not pass. Continue the same Cursor conversation, branch, and product without recreating the project/Site or asking again about the approved design. Stable product: `73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a`; status-only HEAD: `1f1fe7704f92cdc14dd6a819aedeacec909a2f2c`.
 
-本輪根代理真跑24產品API、lint/format/types/build全部exit0；最新獨立suite含82計數，73pass／9fail（31API頂層中26pass5fail＋child/parent，非9個不同根因）。reviewer-ownedtests擴充是依原seed／原子寫入要求，不可改assertions或skip失敗。畫面另有實際確認問題。
+Read `R02_API_RESULTS.md`, `R02_FRONTEND_RESULTS.md`, `R02_BROWSER_RESULTS.md`, and `R02_DOCS_MIGRATION_RESULTS.md` completely. ACCEPTANCE, VISUAL_ACCEPTANCE, and R02B remain applicable. Preserve the repaired R01 vulnerabilities, seven-field gate, retained draft ID, Editor key, student privacy/todo persistence, admin filters, and light-button contrast. Do not reopen solved items or overwrite newer facts with old reports.
 
-## A. 先修4項後端原子性
+Root ran 24 product API cases and lint/format/types/build, all exit 0. The latest independent suite had 82 counts, 73 pass/9 fail (31 top-level API cases: 26 pass/5 fail, plus child/parent counts; not nine distinct causes). New reviewer coverage follows original seed/atomic-write requirements. Do not change assertions or skip failures. Browser issues were also confirmed.
 
-1. **Seed失敗不可留下半套資料**：service350–359先寫meta seeded，再逐筆寫45users、lessons等。獨立test在lesson INSERT注入真正SQLite ABORT，seed失敗後留下45users/3classes/marker，解除故障重試所有角色200但永久0lessons/0requests。將完整資料＋完成/版本標記同一D1交易落地；不存在完整標記不能僅因users>0就跳過。保留正常註冊/關聯，不清整庫。SQL schema-only migration與seed分開。
-2. **8個首次登入同時來都要正常可用**：同一空已遷移庫目前1個200、7個409。安全合併或DB層冪等／等待完整seed，不让敗方讀半套。不能只靠某isolate的module promise當跨Worker保護。原seed fault/retry與parallel startup tests都要通過。
-3. **CAS敗方不得寫成功事件或碰課表／locks**：現在accept/decline/cancel/complete平行都200+409，但timeline/audit各2；accept通知26應13、decline2應1。更簡單：合法Completed後再次Completed回409卻新增timeline/audit。原因是events的EXISTS只看最終status，不看「本次」UPDATE成功，事後batch meta.changes才throw已太晚。
-   建議用每次操作唯一transition UUID／revision token，只有成功CAS寫入本次token，batch內課表、鎖、timeline/audit/notifications全以本次token條件執行；或另一個證明同等原子性的可維護方案。只查最終狀態／同毫秒timestamp／batch後再throw／前端busy都不能解。需要migration就正式新增，metadata一致。成功恰好一次，失敗完全無副作用。
-4. **submit交易內重查正式lesson占用**：A的conflictReport過後暫停，B正常API submit→accept佔用同一目標且釋放Pendinglocks，再放行A；A仍200Pending，鎖已正式佔用的班級時段。不能只靠slot_locks PK。Pending CAS／reservations在同一原子操作檢查目前lesson班級／教師占用與source安排，失敗409、保留Draft且無submitted事件／locks。不完整交接仍422；完整但衝堂不能錯回422 missing=[]。R01的accept／cancel防線保留。
+## A. Four backend atomicity repairs
 
-最新完整命令（repo根）：
-`node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts`
-不要修改review-d1／獨立案例，產品自己的sqlite helper和回歸可依法完善。報告已排除未來Completed政策、合法accept→cancel兩個200、取消通知未有契約的假設；真正失敗不依賴那些條件。
+1. **Failed seed must not leave half a school.** Service lines 350–359 write seeded metadata before inserting 45 users and lessons individually. A real SQLite ABORT on lesson INSERT leaves 45 users, three classes, and a marker. After removing the fault, every role gets 200 but lessons/requests stay at zero. Write complete seed plus completion/version markers in one D1 transaction. Without a complete marker, users>0 is insufficient. Preserve ordinary registrations/relationships; do not clear the database. Keep schema-only migrations separate from seed.
+2. **Eight concurrent first sign-ins must work.** One empty migrated database yields one 200 and seven 409. Use safe coordination/database idempotence and wait for a complete seed; losing attempts must not read partial state. One isolate's module promise is not cross-Worker protection. Seed fault/retry and parallel-start tests must pass.
+3. **Losing CAS must not emit success events or alter timetable/locks.** Concurrent accept/decline/cancel/complete return 200+409 but create two timeline/audit events. Accept sends 26 notifications rather than 13; decline sends two rather than one. Repeating Completed after a lawful completion returns 409 but still creates events. EXISTS checks final status rather than this attempt's UPDATE; throwing after batch `meta.changes` is too late. Use a unique transition UUID/revision token written only by the successful CAS, gating lesson, locks, events, and notifications inside the batch, or an equally atomic maintainable solution. Final status, same-millisecond timestamps, post-batch throws, and frontend busy are insufficient. Add proper migration/metadata if needed. Success is exactly once; failure has no effects.
+4. **Recheck actual lesson occupancy inside submit.** Pause A after conflictReport; B uses real submit→accept to occupy the same target and release Pending locks; resume A. A still becomes Pending and locks the occupied class slot. A slot_locks primary key alone is insufficient. Pending CAS/reservation must atomically check class/teacher occupancy and current source. Failure is 409, preserving Draft with no submitted events/locks. Incomplete handover remains 422; a complete conflicting request must not return 422 with missing=[]. Preserve accept/cancel safeguards.
 
-## B. 具體前端修正：不要只改正常畫面
+Run from root:
+`node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts`.
+Do not edit review-d1 or independent cases. Product SQLite helpers/regressions may improve. The report excludes future-Completed policy, two lawful accept→cancel 200 responses, and cancellation-notification assumptions without a contract; the real failures do not depend on them.
 
-1. **繁中CSS scope（已真瀏覽器重現）**：1440×900下zh-Hant shell608/main388；切EN shell1440/main1220。handover.css149 `.handover-root :lang(zh)`把所有繼承中文的descendant都max-width38em。只約束文字段落，不限制shell/main/form/button等布局；登入／三角色／兩語真390/768/1440尺寸測內容寬度，禁止overflow:hidden掩蓋。
-2. **下一堂資料要同一lesson**：app842 firstConfirmed與846 nextLesson各取各的；883把Friday10/9 P4 Maya→Jonah放在Monday10/5 P1正常Math下。按lessonId/requestId＋合法公開狀態關聯。沒有該堂交接就顯示原安排，其他近期異動獨立列自己的日期節次；卡片和Open目的地一致。依真資料顯示日期／今天／下一上課日，週末不假裝有今日課。
-3. **Detail輸入隔離**：app1440 Detail缺key，comment/supplement/error在1937只init，切不同request會把私密留言送錯人。按ID key／明確重置，測A填PRIVATE但不送，切B不能帶入A。Editor已修但Detail另驗。
-4. **每個可見API操作完整busy/catch/error/retry/401/success**：R02_FRONTEND_F04有精確表格，logout、全部通知read、profile、reset、users load/toggle、audit、detail動作/view、impact都仍有缺口。初次workspace500不能默默回Auth且丟掉錯誤；global refresh234立即清掉message導致成功回饋看不見。可用清楚共用hook/helper集中mutation與load，但不要用全域unhandledrejection吞掉例外。401一致撤登入回入口、保留合理未存內容；403/validation/network有正確本地文案；忙碌阻止重複寫，失敗不是綠色success；成功aria-live可見。Users/Audit載入失敗不冒充empty。
-5. **衝堂重試**：failedKey使當前安排report=null且Send永久disabled；加入保持欄位的Retry，成功清舊error，401/403區分，仍忽略過期查詢。跨週GETdetail／notificationreload的舊新workspace回應逆序要有generation/abort保護，確定週次與資料一致。
-6. **系统雙語與日期**：timeline action、notification事件、admin risk、audit action/detail、缺項、availableSlots節次仍rawEnglish/UTC ISO。用事件code＋currentlocale呈現；姓名／老師手寫內容可原文，不翻教師自由輸入。每筆notification已讀／未讀以文字＋圖示可見／可存取，未讀總數不是每筆標記。
-7. **真本週件數**：Admin顯示stats.weekly與清楚週次；目前只lessons/pending/declined/confirmed，不把課堂數當調課數。
-8. **暴露入口要真作用或移除**：simple偏好目前無CSS／render用途；做真正學生簡易呈現或移除入口，不隱藏admin必要操作。範本目前只插subject名字的固定英文；提供真科目／語言內容與原創自帶教材，或移除未完成入口。範本自有URL已修，但service570 seed仍example.org/worksheet，需seed/reset和已有demo stub都真可讀自有材料，不碰普通教師自訂URL、不硬編未發布domain。
-9. **dark／高對比實測**：已露出dark enabled active文字#10221c on#143f34低比；warn白字on#ffb4a8/高對比#ffd0c8約1.70/1.39。修semantic fg/bg組合，真computed驗normal/hover/active/focus/error；一般文字>=4.5、必要非文字/focus>=3，disabled文字排除WCAGthreshold但仍要可用。checkbox真可點label至少44px，不能只放大不存在點擊作用的空白。
+## B. Frontend repairs beyond the happy path
 
-## C. 可重跑的真瀏覽器測試與實際截圖
+1. **Historical Traditional Chinese CSS scope:** at 1440×900, zh-Hant shell/main are 608/388 wide, versus English 1440/1220. `handover.css:149` applies `.handover-root :lang(zh)` max-width 38em to all inherited-language descendants. Constrain paragraphs, not shell/main/form/buttons. Check sign-in and three roles at actual 390/768/1440 in both then-supported languages. Do not hide overflow.
+2. **Next-lesson content must refer to the same lesson.** `firstConfirmed` at app842 and `nextLesson` at846 are unrelated; line883 attaches Friday10/9 P4 Maya→Jonah to ordinary Monday10/5 P1 mathematics. Join lessonId/requestId and legal public states. Without that lesson's handover, show its original arrangement. Other changes show their own date/period separately. Card and Open destination agree. Show actual dates/today/next school day; no fake weekend lessons.
+3. **Isolate Detail inputs.** Detail lacks a key at app1440; comment/supplement/error initialize only at1937 and can send private input to another request. Key/reset by ID and test PRIVATE typed on A but not sent is absent on B. Editor is already fixed; Detail needs separate coverage.
+4. **Complete busy/catch/error/retry/401/success.** R02_FRONTEND_F04 identifies remaining logout, mark-all-read, profile/reset, users load/toggle, audit, detail/view, and impact callers. First workspace500 must not silently return to Auth and lose its error. Refresh234 clears success feedback immediately. Use clear shared hooks/helpers, not global unhandledrejection swallowing. 401 consistently signs out while preserving reasonable input; permission/validation/network errors are localized appropriately. Busy prevents duplicates; failure is not green success; success is visible via aria-live. Failed Users/Audit loads are not empty data.
+5. **Conflict retry:** failedKey leaves report=null and Send disabled forever. Add retry without losing fields, clear the error after success, distinguish401/403, and reject stale responses. Cross-week detail/notification loads need generation/abort protection so out-of-order workspaces cannot mismatch week/data.
+6. **Historical system localization and dates:** timeline actions, notifications, admin risk, audit detail, missing fields, and slot periods remain raw English/UTC ISO. Render event codes using the selected locale; do not translate names or teacher-authored text. Each notification needs accessible text/icon read status; a total unread count alone is insufficient.
+7. **Actual weekly count:** show `stats.weekly` and the displayed week. Lessons/pending/declined/confirmed alone must not mislabel lesson counts as changes.
+8. **Exposed entries need real behavior or removal:** simple mode currently changes neither CSS nor rendering; make an actual student view without hiding admin tasks. Subject templates need genuine subject/language content and original bundled worksheets or removal. Template URL was repaired but seed at service570 still has example.org/worksheet. Seed/reset and existing known demo stubs need readable local material; preserve ordinary teacher URLs and do not hardcode an unpublished domain.
+9. **Measure dark/high contrast:** enabled dark active text #10221c on #143f34 is inadequate; white warning text on #ffb4a8 or contrast #ffd0c8 is about1.70/1.39. Repair semantic pairs and actual default/hover/active/focus/error colors. Ordinary text>=4.5; necessary non-text/focus>=3. Disabled text is exempt from the WCAG threshold but must remain usable. Checkbox labels need real clickable44px targets, not enlarged noninteractive whitespace.
 
-已有@playwright/test devdependency，可用官方Playwright／本機合適skills來寫必要回歸；不新增production套件、不换模型／安裝插件。你這輪從同一份實際產品啟動隔離的已遷移D1 testserver，用真cookies與角色，避免共享開發庫或rootreviewerstate。
+## C. Repeatable real-browser tests and screenshots
 
-至少：
+Use existing @playwright/test and suitable local/official guidance; no production dependency, model change, or plugin installation. Start isolated migrated D1 from this actual product with real cookies/roles, separate from shared development/root reviewer state.
 
-- 390/768/1440 × EN/zh-Hant，登入/學生/老師/行政：document actual viewport真的等於指定尺寸，繁中桌機內容不能被意外窄化，無整頁水平overflow、長文字不裁掉。
-- 完整老師建立草稿→七欄與教材→衝堂→送出→接課teacher拒絕/接受→學生安全detail/TODO保存→admin查詢，包含不能越權的負面案例。
-- 下一堂與不相干晚些交接的 regression；Detail跨ID PRIVATE不得挪用；所有主要500/401/重試/busy與success訊息；conflict舊回應不覆蓋新安排。
-- keyboard/focus/44px、reduce-motion、dark/contrast主要按鈕、實際字体load與fallback。不是className存在就算通過。
+At minimum:
 
-提供可執行script／合理CI整合，官方Chromium在CI安裝；不得skip/continue-on-error掩盖。測試敏感session僅記憶體，不寫cookie/hash/恢復碼到log或截圖。5–8張真畫面依docs/SCREENSHOT_PLAN保存在docs/screenshots/或清楚交付位置，檔案是實際頁面非AImockup，附README。這些是展示截圖，不是Sites thumbnail；不要擅加public/screenshot.jpeg。
+- Actual390/768/1440 × English/zh-Hant for sign-in/student/teacher/admin. Assert actual viewport, adequate historical localized width, no page overflow, and readable long text.
+- Complete draft→seven fields/material→conflict→submit→recipient decline/accept→safe student detail/todo persistence→admin search, with permission negatives.
+- Next lesson versus unrelated later handover; Detail PRIVATE isolation; major500/401/retry/busy/success feedback; stale conflict responses cannot overwrite new arrangements.
+- Keyboard/focus/44px, reduced motion, dark/contrast primary buttons, and actual font loading/fallback. A className alone is not evidence.
 
-Codex本輪CUA viewport呼叫後actualdocument仍1440，未冒稱獨立390通過；可重跑的Playwright尺寸證據會補此驗收，不把「工具呼叫成功」當render成功。無工具就如實說，不能偽造pass／截圖。
+Provide runnable scripts and appropriate CI integration with official Chromium installation. Do not skip or continue-on-error. Keep sessions only in memory; do not log cookies, hashes, or recovery codes. Capture5–8 actual screens under docs/screenshots or a clear delivery location with README, not AI mockups. These are demonstration captures, not Sites thumbnails; do not add public/screenshot.jpeg without authorization.
 
-## D. 資料庫重建、文件、Git清理
+Root CUA viewport calls still left document width1440, so no independent390 pass was claimed. Repeatable Playwright dimensions must provide evidence. Tool-call success is not render success. If tooling is unavailable, say so; never fabricate passes/captures.
 
-- schema/journal/snapshot14表與Wrangler空D1已驗通過，保留。但SQL沒有`--> statement-breakpoint`而journal breakpoints=true，standard Drizzle讀成一個含14CREATE的prepared chunk；首次正式部署前補合適生成式markers、metadata鏈，重驗db:generate no-op/空D1，不宣稱Sites已部署失敗。新增migration同樣只schema/guard，不大量seed。
-- **README乾淨npmci→dev後demo500 no such table users**：提供真的本機db:migrate腳本/config，source drizzle絕對／正確根路徑、使用同一持久化state；built config在dist/server，migrations_dir./drizzle直接解析到錯處。照新README從空庫完整重建/啟動/4demo都200，第二次migration no-op。保留既有資料，勿刪共享.wrangler。
-- README補Node>=22.13、架構圖、env.example讀取／DB binding、migration/seed、demo invitation、30秒導覽、授權（可以如實unlicensed）、驗證／部署runbook／credits。root入口已修，保留历史筆記。
-- TEST_REPORT分清每輪SHA、實際命令/exit/通過數/尺寸；消除R02已測 vs末尾未測矛盾，這輪最新獨立82數不可寫73已全pass。Devpost短AI揭露與Built with同步Codex＋Cursor及真fonts/starter。人名/資格/guardian/Devpostterms/影片與最後提交保留真人項；已授權Github/site不是重複approvalblocker。
-- tsconfig.tsbuildinfo加入ignore、git rm --cached僅移出index保留本機；不commitgeneratedstate／DB／node_modules/dist/log／credentials。reviewer新檔不是你的成果，不混入產品修改或覆寫。
+## D. Database reconstruction, docs, and Git cleanup
 
-## E. 實作與交回
+- Fourteen-table schema/journal/snapshot and empty Wrangler D1 passed; preserve them. SQL lacks `--> statement-breakpoint` while journal breakpoints=true, so standard Drizzle sees one fourteen-CREATE prepared chunk. Add suitable generated markers/metadata chain and recheck db:generate no-op/empty D1 before first production publication. This is not a proven Sites deployment failure. New migrations remain schema/guards, not bulk seed.
+- Clean README npmci→dev gives demo500/no such table users. Add a real local migrate script/config with correct source drizzle paths and the same persistence state. Built config under dist/server resolves ./drizzle incorrectly. Follow revised README from empty database through start and all four demo200 sessions; second migration is no-op. Preserve data and shared .wrangler.
+- README needs Node>=22.13, architecture, .env.example loading/DB binding, migration/seed, invitation,30-second guide, licensing (truthful unlicensed is acceptable), runbook, and credits. Preserve the corrected root entry and historical notes.
+- TEST_REPORT separates each revision, commands, exits, counts, and viewports; remove contradictions between tested and untested sections. Do not call the latest82-count suite a complete73-pass run. Devpost AI/Built with includes both Codex/Cursor and actual fonts/starter. Names, eligibility, guardian consent, terms, video, and final submission stay human tasks. Already-authorized GitHub/Sites is not a repeated approval blocker.
+- Ignore tsconfig.tsbuildinfo and remove only its index tracking with git rm --cached while retaining the local file. Do not commit generated state, databases, dependencies, builds, logs, or credentials. Do not include or overwrite reviewer-owned work as product edits.
 
-真的讀適用skills（security/workers/diagnosing-bugs/design-system/ui-styling/React/ai-debt/Playwright），記錄具體改動和證據，沿用已核准暖白墨綠字體系統。可以平行分後端／前端／文件測試，隔離檔案，不讓多人同時改app.tsx/service。逐項關閉本prompt，不只挑好改的部分。
+## E. Implementation and handback
 
-format/lint/types/productAPI/最新獨立suite/build/空D1/真E2E都實跑；若有失敗繼續修或給精確不可驗證理由。最後保持branch handover、commit可審查產品版本、**停止產品編輯**，根CURSOR_STATUS更新round3 ready_for_review，用實際当前時間、真HEAD/checks/blockers，同對話交回。不要push未驗收版本；Github與既有Site發布由Codex獨立驗收通過後處理。不建立新Site，不改對外帳號/付費/Devpost最終提交。
+Read suitable security/workers/diagnosis/design/ui/React/AI-debt/Playwright skills and record actual changes/evidence. Keep the approved warm-white/forest-green typography. Parallelize backend/frontend/docs/testing with separate files; do not concurrently edit app.tsx/service. Close every item, not only easy ones.
+
+Run format/lint/types/productAPI/latest independent suite/build/empty-D1/real E2E. Repair failures or give precise verification limits. Keep branch handover, commit a reviewable product, **stop product edits**, and update root CURSOR_STATUS round3 ready_for_review with current time, true HEAD, checks, and blockers. Hand back in the same chat. Do not push unaccepted source; Codex handles authorized GitHub/existing-Site delivery after independent acceptance. No new Site, account changes, payments, or final Devpost submission.

@@ -1,47 +1,47 @@
-# R02 文件與 migration 獨立複驗
+# R02 independent documentation/migration re-review
 
-2026-10-04，Asia/Taipei。產品 commit：`73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a`。status-only HEAD：`1f1fe7704f92cdc14dd6a819aedeacec909a2f2c`。兩者的 `handover` tree 均為 `dd2569753e139cd2ba5ce78c34ba1b22ac3e55ef`。
+2026-10-04, Asia/Taipei. Product commit: `73d32c1ee1a5d764d0dcf8b755b60c0de6eb808a`; status-only HEAD: `1f1fe7704f92cdc14dd6a819aedeacec909a2f2c`. Both app trees: `dd2569753e139cd2ba5ce78c34ba1b22ac3e55ef`. This is translated historical evidence.
 
-**結論：schema／journal／snapshot 與空本機 D1 遷移通過；乾淨安裝的 README 流程失敗，提交文件仍需收尾。** 本輪只寫本報告，產品完全未改；沒有 GitHub、Sites、Devpost 外部寫入。未使用其他代理的 DB／devserver。
+**Schema/journal/snapshot and empty local D1 migrations passed; clean README setup failed and submission documents required completion.** Only this report changed; no product/GitHub/Sites/Devpost writes or shared DB/devserver use.
 
-## 實際執行範圍與結果
+## Actual execution scope/results
 
-使用 `git archive 73d32c1:handover` 建立 `/tmp/handover-r02-docs.uDXiYt/app`（macOS realpath 為 `/private/tmp/...`）。所有依賴、產物、profile 和 DB 均在這份副本及其專用父目錄。環境是 Node `v26.3.0`、npm `11.16.0`；不是 GitHub CI 的 Node 22。
+`git archive 73d32c1:handover` created `/tmp/handover-r02-docs.uDXiYt/app` (macOS realpath `/private/tmp/...`). Dependencies, artifacts, profile, and DB stayed in that copy/dedicated parent. Node `v26.3.0`, npm `11.16.0`, not CI Node 22.
 
-| 真正執行的命令／檢查 | exit | 結果 |
+| Actual command/check | Exit | Result |
 | --- | ---: | --- |
-| `npm ci` | 0 | lockfile 安裝 688 packages；有 deprecated／allow-scripts 警告，後續 build 成功，未另外放寬 scripts。 |
-| bundled `configure-execution-profile.mjs` | 0 | portable；只寫副本 ignored `.sites-runtime`。 |
-| `node ../metadata-check.mjs` | 0 | journal 順序、SQL 清單、snapshot 鏈、14 表、欄位 default／not-null／PK、索引與 partial predicate 相符。 |
+| `npm ci` | 0 | Lockfile installed 688 packages; deprecated/allow-scripts warnings, subsequent build succeeded without further script allowances |
+| bundled `configure-execution-profile.mjs` | 0 | Portable; only copy ignored `.sites-runtime` changed |
+| `node ../metadata-check.mjs` | 0 | Journal/order/SQL/snapshot chain/14 tables/column defaults/not-null/PK/indexes/partial predicates matched |
 | `npm run db:generate` | 0 | `No schema changes, nothing to migrate`。 |
-| `diff -ru ../drizzle-before drizzle` | 0 | SQL 與 metadata 沒有重新生成差異。 |
+| `diff -ru ../drizzle-before drizzle` | 0 | No regenerated SQL/metadata differences |
 | `npm test` | 0 | 24 passed，0 failed。 |
 | `npm run typecheck` | 0 | `tsc --noEmit`。 |
-| `npm run lint` | 0 | 沒有 lint 錯誤。 |
+| `npm run lint` | 0 | No lint errors |
 | `npm run format:check` | 0 | All matched files use Prettier code style。 |
-| bundled `build-site.mjs` → `npm run build` | 0 | 完整 Vinext client／server／RSC／SSR build 成功。 |
-| 空本機 D1 `migrations apply DB --local` | 0 | `0000_init.sql`，22 commands 成功；記錄到 `d1_migrations`。 |
-| 同一 D1 第二次 `migrations apply` | 0 | `No migrations to apply`。 |
-| D1 migration ledger／table 查詢 | 0 | `0000_init.sql`；14 產品表，另有 `_cf_METADATA`、`d1_migrations`。 |
-| 已遷移 Worker 四個 demo session／workspace probe | 0 | student、teacher0、teacher1、admin 登入及 workspace 均 200，HttpOnly true，`/auth/me` 均 200。 |
-| D1 seed 角色數查詢 | 0 | admin 1、teachers 8、students 36。 |
-| README 乾淨 dev／demo probe | **1** | GET `/` 200；POST `/api/auth/demo` 500 `{"error":"INTERNAL"}`；server：`no such table: users`。 |
+| bundled `build-site.mjs` → `npm run build` | 0 | Full Vinext client/server/RSC/SSR build succeeded |
+| Empty local D1 `migrations apply DB --local` | 0 | `0000_init.sql`, 22 commands succeeded, recorded in `d1_migrations` |
+| Same D1 migrations apply again | 0 | No migrations to apply |
+| D1 ledger/table query | 0 | `0000_init.sql`; 14 product tables plus `_cf_METADATA`, `d1_migrations` |
+| Migrated Worker four-demo-session/workspace probe | 0 | Student/teacher0/teacher1/admin login/workspace 200, HttpOnly true, all auth/me 200 |
+| Seed role count | 0 | Admin 1, teachers 8, students 36 |
+| Clean README dev/demo probe | **1** | GET `/` 200; demo POST 500 `{"error":"INTERNAL"}`; server: `no such table: users` |
 
-`metadata-check.mjs` 是 [MIGRATION_RELEASE_CHECKS.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/MIGRATION_RELEASE_CHECKS.md) 第 2 節的 Node 檢查，僅複製到 owned scratch 執行。SQL SHA-256：`d354f114786516e6b7e1d7859dcef5a556d1d6d01b5f6528e9eb8b76e2515c08`。
+`metadata-check.mjs` was copied only into owned scratch from section 2 of [MIGRATION_RELEASE_CHECKS.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/MIGRATION_RELEASE_CHECKS.md). SQL SHA-256: `d354f114786516e6b7e1d7859dcef5a556d1d6d01b5f6528e9eb8b76e2515c08`.
 
-## 必修文件與重建問題
+## Required documentation/reconstruction repairs
 
-1. **[README.md:9](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/README.md:9) 不能重建可登入的空資料庫。** `npm ci` → `npm run dev` 只建立 Worker binding，並未套用 migrations；移除 request-time DDL 後，一鍵 demo 登入必定遇到缺表。`DECISIONS.md` 雖寫先 migrate，但 README 沒有命令、config、persist 路徑或 seed 說明。加入可靠的本機 migration 命令／script，再以空 DB 照 README 完整重跑。此為可重現 blocker，不能以現有已 seed 的開發 DB 當通過。
-2. **[TEST_REPORT.md:40](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/TEST_REPORT.md:40) 與 [同檔:50](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/TEST_REPORT.md:50) 互相矛盾。** 前者稱 390／768／1440 已測且無 overflow，後者稱只有一種寬度、三種未測。把歷史 Round 1 與 Round 2、各測試 SHA／日期／範圍分開，最後未驗清單只列目前仍缺的證據。24 API tests、73 先前獨立案例、本輪新 backend suite、browser／Worker／正式部署不能混成一個 PASS。
-3. **[DEVPOST_SUBMISSION.md:92](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/docs/DEVPOST_SUBMISSION.md:92) 短 AI 揭露仍只列 Codex。** `AI_DISCLOSURE.md:7`／`:22` 已列 Codex 與 Cursor；Devpost 的 Built with、短揭露和 prior assets 需同步，不能讓實際貼出的版本省略 Cursor。已有的 starter、fonts、Lucide／vendor notices 可先填入已知事實，再由本人確認是否另有賽前素材。
-4. **README 交付資訊仍不完整。** 原需求指定架構圖、`.env.example` 使用方式、migration／seed 重建、授權、30 秒評審導覽；目前 README 只有簡短介紹、角色與檢查。`.env.example` 已存在且被追蹤（demo invite／DEMO_MODE），但 README 未解釋本機與 Sites runtime 的設定方式；真實 public／repo URL 需在發布完成後填入，不能現在捏造。
-5. **[SUBMISSION_CHECKLIST.md:96](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/SUBMISSION_CHECKLIST.md:96) 把 repo／網站發布留在「只有本人」區。** 使用者已授權本案 GitHub／公開網站交付，主代理可以在驗收後完成；不要把它變成重複索取授權的 blocker。真正本人步驟保留資格、姓名／隊員、監護人／條款、獎項選擇、錄影／影片分享及 Devpost 最終提交。
+1. **[README.md:9](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/README.md:9) cannot reconstruct a usable empty DB.** `npm ci` → `npm run dev` creates the binding without migrations. After request-time DDL removal, demo fails with missing tables. DECISIONS mentions migration, but README lacks command/config/persistence/seed instructions. Add a reliable local script/command and rerun the full README from an empty DB. Existing seeded dev data does not disprove this reproduced blocker.
+2. **[TEST_REPORT.md:40](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/TEST_REPORT.md:40) contradicts [line 50](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/TEST_REPORT.md:50).** One claims 390/768/1440 with no overflow; the other says one width/three untested. Separate Round 1/Round 2/SHA/date/scope and current missing evidence. 24 API tests, 73 earlier independent counts, new backend, browser, Worker, and production results cannot become one PASS.
+3. **[DEVPOST_SUBMISSION.md:92](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/docs/DEVPOST_SUBMISSION.md:92) short AI disclosure names only Codex.** AI_DISCLOSURE lines 7/22 name Codex and Cursor. Synchronize Built with/short disclosure/prior assets so the actual submission does not omit Cursor. Fill known starter/fonts/Lucide/vendor facts; the participant confirms additional preexisting assets.
+4. **README delivery details are incomplete.** Requirements include architecture, `.env.example`, migration/seed, license, and a 30-second judge guide. README had only brief introduction/roles/checks. Tracked `.env.example` contains demo invite/DEMO_MODE, but local/Sites runtime configuration is unexplained. Add actual public/repo links only after publication.
+5. **[SUBMISSION_CHECKLIST.md:96](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/handover/SUBMISSION_CHECKLIST.md:96) places repo/site publication among participant-only tasks.** The user already authorized GitHub/public delivery; root may complete it after acceptance without repeated approval blockers. Participant retains eligibility/name/team/guardian/terms/prizes/video sharing/final Devpost submission.
 
-產品授權尚未指定不是 GitHub 上傳 blocker。可在 README 如實寫「product currently unlicensed；第三方 notices 適用於各素材」，不要擅自替本人選 MIT，也不要把 OFL／ISC／MIT 的 vendor notices 說成整個作品的授權。
+Unspecified product license is not a GitHub upload blocker. State product currently unlicensed and third-party notices apply to their assets. Do not select MIT for the user or label vendor OFL/ISC/MIT as the whole product license.
 
-## Migration 相容性警訊：需在正式發布前處理
+## Migration compatibility concern before production publication
 
-SQL、snapshot、schema 的**內容一致性已通過**；Wrangler 本機 CLI 的完整 SQL-script 執行也已通過。但 `0000_init.sql` 沒有 `--> statement-breakpoint`，而 journal `breakpoints=true`。實際執行：
+SQL/snapshot/schema **content consistency passed**, as did Wrangler local full SQL-script execution. But `0000_init.sql` lacks `--> statement-breakpoint` markers while journal has `breakpoints=true`. Actual check:
 
 ```sh
 node --input-type=module <<'NODE'
@@ -54,22 +54,22 @@ console.log(JSON.stringify(readMigrationFiles({migrationsFolder:'./drizzle'}).ma
 NODE
 ```
 
-exit 0，結果為 `[{"breakpoints":true,"statementChunks":1,"containsCreateTables":14}]`。已安裝 `drizzle-orm/d1/migrator.js` 對每個 chunk 呼叫 `db.run(sql.raw(stmt))`；這份檔案因沒有 markers，會送出含多個語句的單一 prepared query，與 Sites 指引每次 `prepare()` 一句的要求有落差。
+Exit 0: `[{"breakpoints":true,"statementChunks":1,"containsCreateTables":14}]`. Installed `drizzle-orm/d1/migrator.js` calls `db.run(sql.raw(stmt))` for each chunk. Missing markers produce one multistatement prepared query, unlike Sites guidance of one prepare statement.
 
-**建議：正式首次部署前保留生成式 statement breakpoints，回 parent 更新 SQL，重新做 metadata／db:generate no-op／空 D1 驗證。** 目前 Site 尚未套用此 migration，仍有修正空間；已正式套用後不得改寫 migration 歷史。此項不是「Sites 已部署失敗」的宣稱，因為沒有呼叫 native deployment，也無法由本機 helper 確定服務端解析器。
+**Recommendation: retain generated statement breakpoints before first deployment; update parent SQL and rerun metadata/db:generate NOOP/empty D1.** The Site had not applied this migration yet; after application never rewrite history. This does not claim actual Sites deployment failure: no native deploy ran, and a local helper cannot establish the server parser.
 
-額外 standard Drizzle D1 migrator probe 未產生有效結果：直接使用 standalone Miniflare `getD1Database()` 在兩份 owned 空 state 等不到 binding；第一次手動停止（exit 137），第二次加 `cf:false`／停用 fetch、以 20 秒限時（exit 124）。只看到 `probe begin`，未執行到 `migrate`。此為 probe 工具限制，**不當產品失敗，也不當 standard migrator 通過**。實際 Wrangler Worker／D1 路徑則如上通過。
+An extra standard Drizzle D1 migrator probe produced no valid result: standalone Miniflare `getD1Database()` never resolved the binding in two owned empty states. First manually stopped (exit 137); second used `cf:false`/disabled fetch/20-second timeout (exit 124). Only `probe begin`, never reaching migrate. Tool limitation, **neither product failure nor standard migrator pass**. Actual Wrangler Worker/D1 passed above.
 
-## README blocker 與空 D1 的可重現命令
+## Reproduction commands for README blocker and empty D1
 
-在 owned app 副本先照原 README 啟動，不套 migration：
+Start the owned app copy following the original README without migration:
 
 ```sh
 cd /tmp/handover-r02-docs.uDXiYt/app
 npm run dev -- --port 8897 --host 127.0.0.1
 ```
 
-另一個 terminal 執行以下 **實際使用的** probe；exit 1、GET 200、demo POST 500：
+In another terminal run this **actually used** probe: exit 1, GET 200, demo POST 500:
 
 ```sh
 node --input-type=module <<'NODE'
@@ -82,7 +82,7 @@ process.exitCode=response.status===200?0:1;
 NODE
 ```
 
-停止該 server，再乾淨 build。從新 build 讀 DB binding、產生 source 外的 config：
+Stop the server, build fresh, read the new binding, and generate config outside source:
 
 ```sh
 node --input-type=module <<'NODE'
@@ -104,19 +104,19 @@ WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false node node_modules/wrangler
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to ../d1-state --ip 127.0.0.1 --port 8898 --inspector-port 0
 ```
 
-新 dist 的 binding `migrations_dir` 是 `./drizzle`，其 config 位於 `dist/server/`。直接用該 config 跑 migration 會依 config 目錄解析路徑；本輪因此使用**絕對 source drizzle 路徑**的隔離 config。不要將新 README 修成一條指向錯誤 migration 目錄的命令。
+New dist binding `migrations_dir` is `./drizzle`, with config in `dist/server/`. Relative paths resolve from the config directory, so this round used an isolated config with **absolute source drizzle path**. Do not repair README with the wrong migration path.
 
-8898 的 Node probe 逐一對 student、teacherIndex 0／1、admin 發送同源 `POST /api/auth/demo`，assert status 200、角色正確與 cookie HttpOnly；cookie 僅在記憶體，接著 assert `/auth/me`、`/workspace` 200。workspace 課程數分別為 20／5／7／60，requests 1／2／2／7。再用相同 DB-only config 查 `SELECT role,COUNT(*) AS n FROM users GROUP BY role ORDER BY role;` 得到 1／8／36。兩個 server 與 standalone probes 已全部停止。
+Port 8898 Node probe sent same-origin demo POST for student/teacherIndex 0/1/admin, asserting 200/correct role/HttpOnly; cookies remained only in memory. Then auth/me/workspace returned 200. Workspace lessons: 20/5/7/60; requests: 1/2/2/7. The same DB config role COUNT query returned 1/8/36. Both servers and standalone probes were stopped.
 
-## 已一致的文件與仍需填入的事實
+## Consistent documents and facts still to fill
 
-- 根 [README.md:3](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/README.md:3) 有正確 app 入口，舊筆記明確標歷史；資格沒有因此視為已確認。其 relative link 對 GitHub 的 parent-root 佈局有效。
-- `HANDOFF`／`DECISIONS` 正確寫 request-time DDL 已移除、後端授權、真正 session、salted PBKDF2／recovery、Email 未接、demo reset 保留真實帳號；這些承諾的深入並行驗證以 backend reviewer 報告為準，本報告沒有重複宣布 seed 競態已解決。
-- `.github/workflows/ci.yml` 在 parent 根，Node 22、working-directory `handover`、cache lockfile 路徑正確；commands 對齊本機 npm ci／format／lint／types／tests／build，沒有 continue-on-error。GitHub 實際 CI 尚未執行，不把本機 Node 26 當 Node 22 的雲端通過證據。
-- `CREDITS`／AI 詳細揭露包含 starter、Manrope／Noto Sans TC、Lucide／shadcn，兩份自託管字型與 OFL notices 存在；沒有 stock photos。暖白／墨綠 tokens 與 design notes 相符。小差異：design notes 說 motion 只 transform／opacity，但 CSS 也 transition background-color／color；可修文案，無需因此改產品。
-- Devpost 文案仍是草稿；技術庫、測試數／SHA、限制與已知 credits 可由代理填實，public／repo URL 必須等真實發布，姓名／隊員與理解確認留本人。不要保留 `[CONFIRM]` 後直接貼到 Devpost。
-- DEMO_SCRIPT 120 秒、7 個截圖分鏡與 AI／synthetic 標示符合原需求；尚無 `docs/screenshots/` 的實際輸出。腳本與計畫沒有冒稱已錄影／截圖，檔案存在不能當媒體交付完成。
-- 清單保留官方 deadline 矛盾，採較早台灣 2026-10-05 15:00、建議 12:00；影片選填、5 項評分與 Render Workflows 限制沒有被改成不實規則。此輪未重複 browse。
-- `handover/tsconfig.tsbuildinfo` 仍被追蹤；依 release 計畫在 handback 後加入 ignore／移出 index，保留本機檔案。發布 checkout 不可收進因 checks 改動的 buildinfo。
+- Root [README.md:3](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/README.md:3) correctly links the app and labels historical notes; it does not establish eligibility. Relative links work in the parent-root GitHub layout.
+- HANDOFF/DECISIONS correctly record removed request DDL, backend authorization, real sessions, salted PBKDF2/recovery, no email, and reset preserving real users. Deep concurrency claims belong to the backend report; this report does not claim seed races are resolved.
+- Parent `.github/workflows/ci.yml` uses Node 22/working-directory handover/correct lockfile cache. Commands align npm ci/format/lint/types/tests/build, with no continue-on-error. Actual GitHub CI had not run; local Node 26 is not cloud Node 22 evidence.
+- CREDITS/detailed AI disclosure includes starter/Manrope/Noto Sans TC/Lucide/shadcn. Two self-hosted fonts/OFL notices exist; no stock photos. Warm paper/forest tokens match design notes. Minor difference: notes say motion only transform/opacity; CSS also transitions background-color/color. Fix copy without product changes.
+- Devpost copy remains draft. Agents can fill verified libraries/counts/SHAs/limits/credits. Public/repo URLs await real publication; participant confirms names/team/understanding. Never paste unresolved `[CONFIRM]` fields into submission.
+- DEMO_SCRIPT is 120 seconds, with 7 screenshot storyboards and AI/synthetic labels meeting the brief. No actual `docs/screenshots/` output yet. Script/plan do not claim recorded media; file existence is not media delivery.
+- Checklist retains official deadline contradiction, earlier Taiwan 2026-10-05 15:00, target 12:00. Optional video, five criteria, and Render Workflows restrictions remain accurate. No browsing repeated this round.
+- `handover/tsconfig.tsbuildinfo` remains tracked. After handback, ignore/remove from index but preserve the local file. Release checkout must exclude check-generated buildinfo.
 
-後續發布仍須由主代理完成：external checkout Git 根與 parent `HEAD:handover` app tree 完全相等、同一 Site project／DB、archive 的 `dist/.openai/drizzle/` SQL＋meta 完整且 hash 相同、runtime env revision、native succeeded／真 URL、公開無痕角色主流程。沒有新增 Site 或更換正式 DB 的理由；本輪本機 PASS 不代表 production PASS。
+Root still owns release: external Git root tree equals parent `HEAD:handover`, same Site project/DB, complete byte-identical archive SQL/meta at `dist/.openai/drizzle/`, environment revision, native succeeded/actual URL, and anonymous public role workflow. No reason for a new Site/production DB. Local PASS does not mean production PASS.

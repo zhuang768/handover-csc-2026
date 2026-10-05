@@ -1,70 +1,70 @@
-# R04 後端複驗準備與 GitHub 唯讀查詢
+# R04 backend re-review readiness and read-only GitHub lookup
 
-日期：2026-10-04，Asia/Taipei。Cursor 正在 R04 施工；本輪沒有對 moving tree 執行 API、產品 suite、瀏覽器或服務，也沒有修改產品。只新增 reviewer 專屬的一個有明確保留資料契約的 top-level case，保留原 84 個計數的所有 assertions。
+Date: 2026-10-04, Asia/Taipei. Cursor was implementing R04. No API, product suite, browser, or service was run against the moving tree, and no product file changed. Only one reviewer-owned top-level case with an established preservation contract was added; all assertions behind the original 84 counts were retained. This is a translated historical record.
 
-## 原升級案例的缺口
+## Gaps in the existing upgrade cases
 
-- 完整舊庫 case（line 925）驗有效 real session 與 users／lessons／requests 數量；它記錄 table snapshot 差異，但沒有要求原 row 值保留。用同樣數量重建／覆寫 demo 課表或交接，可能仍通過。
-- 局部舊庫 case（line 948）已比較真實註冊者的 user／credential／session 全值，並要求補建完整 seed／關聯；它沒有先修改 demo profile，因此看不出局部 repair 是否把 demo 名稱／其他欄位重設。
-- 原 demo reset 真實資料保留 case 針對明確的 admin reset；不能代替初始化升級時保留教師／學生已建立資料的驗證。
+- The complete legacy DB case (line 925) checked a valid real session and users/lessons/requests counts. It recorded table snapshot differences without requiring original row values to remain. Rebuilding or overwriting the demo timetable/handovers with equal counts could pass.
+- The partial legacy DB case (line 948) compared every real registrant user/credential/session value and required complete seed/relations. It did not first edit a demo profile, so it could miss repair resetting demo names/other fields.
+- The existing real-data-preserving demo reset case covered explicit admin reset; it could not replace initialization-upgrade checks for established teacher/student data.
 
-R04 prompt 第 1 節明確要求保留既有帳號、普通註冊、session、改過的課堂／交接及關聯；新增範圍已有依據，不增加產品功能。
+Section 1 of the R04 prompt explicitly required preserving accounts, ordinary registrations, sessions, edited lessons/handovers, and relations. The added case had an existing requirement basis and introduced no feature.
 
-## 唯一新增回歸
+## The single new regression
 
-[independent-api.test.mts:979](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/independent-api.test.mts:979)：`R04 review: legacy readiness preserves edited demo arrangements and established teacher/student relations`。
+[independent-api.test.mts:979](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/independent-api.test.mts:979): `R04 review: legacy readiness preserves edited demo arrangements and established teacher/student relations`.
 
-這是一個 top-level case，含兩個循序階段，不新增 child 計數：
+One top-level case contains two sequential phases, with no additional child counts:
 
-1. **完整舊庫**：透過真 API 修改 demo teacher profile，對真正 demo lesson 建 move→submit→accept，留下修改過的 handover／私密 notes／補充；同班學生以真 API 建 todo／view。負向控制確認課表真的改動、request 屬 demo、todo／receipt 已存在。轉為 R02 marker 與 nullable token 表示後，由有效 real session 觸發 readiness。
-2. **局部舊庫**：另建獨立 fixture，以正常 API 修改 demo profile、正常註冊 real teacher，再重建已證實的 R02 3 班／45 demo users／0 lessons／0 requests 舊失敗 state。要求補齊課表／所有 demo 關聯，同時 classes／users／sessions fingerprint 保持不變，包含已改 demo profile 及 real credential／session。
+1. **Complete legacy DB:** use actual APIs to edit a demo teacher profile and move/submit/accept a real demo lesson, retaining edited handover/private notes/supplement. A same-class student creates a todo/view using actual APIs. Negative controls prove the timetable changed, the request is demo-owned, and the todo/receipt exists. Convert to R02 markers and nullable tokens, then trigger readiness with a valid real session.
+2. **Partial legacy DB:** use a separate fixture, edit a demo profile through the API, register a real teacher, then recreate the established R02 failure state of 3 classes/45 demo users/0 lessons/0 requests. Require complete timetable/demo relations while classes/users/sessions fingerprints remain unchanged, including the edited demo profile and real credential/session.
 
-完整舊庫要求**每筆已成立的非 meta row 原值仍存在**；classes／users／lessons／requests 也不可重複。這會抓出同數量覆寫／刪除後重建、改回 base_*、重設 handover／profile、丟 todo／view／timeline／audit。允許新增 completion marker，也允許追加合理的 migration audit，沒有把「不得覆寫既有資料」擴張為「任何 table 都不能追加一筆」。失敗訊息不輸出 row 值、credential hash 或 session token。
+The complete phase requires **every established non-meta row to retain its original values**, with no duplicate classes/users/lessons/requests. This catches equal-count overwrites/rebuilds, restoration to base_*, reset handovers/profiles, or lost todos/views/timeline/audit. Additive completion markers and reasonable migration audit are allowed; preservation does not prohibit every new row. Failure messages do not print row values, credential hashes, or session tokens.
 
-局部階段原本就沒有課堂，不能臆造一堂已移課 lesson；所以用 R02 允許的 profile edit／real registration 表示已修改資料，並保留原來有效的負向控制。
+The partial phase originally has no lessons, so it cannot invent an already moved lesson. It uses R02-supported profile editing/real registration to represent edited data, preserving valid negative controls.
 
-## 固定 R03 驗證：已實際執行
+## Fixed R03 verification actually executed
 
-為避免碰到施工中的 service，從 **`git archive f3fa696115a86f98995686b6bb934b90492133ab:handover`** 匯出一次性隔離副本，先驗 app tree **`911adb7043d89b7487b12b9bb3d06876457699a5`**，再複製 reviewer suite／adapter／harness。Node process 的 CWD、service、shared/time 與全部 SQL migrations 都來自該固定副本；沒有載入 moving workspace 產品模組。臨時副本執行後已清理，沒有 checkout、stash 或改原工作區。
+To avoid the moving service, export a disposable isolated copy with **`git archive f3fa696115a86f98995686b6bb934b90492133ab:handover`**, verify app tree **`911adb7043d89b7487b12b9bb3d06876457699a5`**, then copy the reviewer suite/adapter/harness. Process CWD, service, shared/time, and all SQL migrations come from that fixed copy. No moving product module was imported. The temporary copy was cleaned up afterward without checkout, stash, or changes to the original workspace.
 
-副本內的命令：
+Command in the copy:
 
 ```sh
 node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts
 ```
 
-**實際 exit 1：85 計數、82 pass／3 fail／0 skip／0 cancelled。** API 83（34 top-level），harness 2。原 82 全通過；兩個原 legacy case 與新增的唯一 preservation case 都正常 red，409 `INVALID_STATE`。新增 case 的 profile／move／handover／supplement／todo／view setup 全部已成功，紅燈落在原 R03 readiness；不是先被非法 fixture 或越權擋住。
+**Actual exit 1: 85 counts, 82 pass/3 fail/0 skip/0 cancelled.** API 83 (34 top-level), harness 2. All original 82 passed. The two legacy cases and the one preservation addition remained legitimately red with 409 `INVALID_STATE`. The new case's profile/move/handover/supplement/todo/view setup all succeeded; failure occurred in R03 readiness, not an invalid fixture or denied permission.
 
-因固定 R03 在完整舊庫階段就 red，新 case 後半局部 edited profile 階段尚未執行；須在 R04 穩定版本修好共同 blocker 後實測，不能宣稱它已通過。
+Because fixed R03 failed in the complete phase, the partial edited-profile phase had not executed. It required a stable R04 repair and actual rerun; no pass was claimed.
 
-reviewer 靜態型別也實跑：
+Reviewer static types also ran:
 
 ```sh
 node handover/node_modules/typescript/bin/tsc --noEmit --module ESNext --moduleResolution Bundler --target ES2022 --allowImportingTsExtensions --skipLibCheck --typeRoots handover/node_modules/@types --types node .codex-review/independent-api.test.mts .codex-review/review-d1.mts handover/node_modules/@cloudflare/workers-types/index.d.ts
 ```
 
-exit 0。這只驗 reviewer 檔型別，沒有執行施工產品或宣稱 R04 已驗收。
+Exit 0. This checked reviewer types only, not the moving product or R04 acceptance.
 
-## Cursor 交回後的 focused 複驗順序
+## Focused order after Cursor handback
 
-1. 記錄停止編輯後固定產品 SHA、app／CI tree，確認開始與結束乾淨；有行為碼變動則撤回該輪判定，改用新固定版本。
-2. 先跑三個 legacy case（925／948／979）；確認完整與局部舊庫都可用，已成立資料未被覆寫，完整學校不被重複建立。相容判斷看 records／關聯，不要求已正常轉換的 sample 狀態回最初值，也不可盲轉所有 `seeded=1`。
-3. 跑完整 **85** 計數。保留新空庫 fault→retry、8 個平行 startup、CAS 失敗事件、stale submit、R01 全回歸、角色／隱私／session／reset 等 gates，不只單跑舊庫。
-4. 從 adapter `appliedMigrations` 對照所有 `.sql`、journal 與 snapshot；若 R04 有新增 migration，以實際 inventory 為準。所有 SQL 自動全檔載入，沒有手動跳過 0001／新 guard。
-5. 根代理另在隔離的真 Worker／D1 執行 fresh startup 及真正舊完整／局部 DB upgrade smoke，連續檢查有效 session、教師修改安排／交接、學生 todo／receipt、資料持久性。Node native SQLite 與真 Worker 的證據各自記錄，不混當遠端驗收。
+1. Record frozen product SHA and app/CI trees; verify clean state before/after. Withdraw the verdict and use a newly pinned version if behavior code changes.
+2. Run the three legacy cases (925/948/979): complete and partial schools must work, established data must survive, and complete schools must not duplicate. Use records/relations for compatibility, without forcing legitimately transitioned samples back to initial states or blindly promoting every `seeded=1`.
+3. Run all **85** counts, retaining fresh-empty fault/retry, 8 parallel startups, failed-CAS events, stale submit, all R01 regressions, roles/privacy/sessions/reset; do not run legacy cases alone.
+4. Compare adapter `appliedMigrations` with every `.sql`, journal, and snapshot. Use actual R04 inventory if migrations change. All files load automatically; no manual skip of 0001/new guards.
+5. Root separately uses isolated actual Worker/D1 fresh startup and genuine complete/partial legacy upgrade smoke: valid sessions, edited teacher arrangements/handovers, student todos/receipts, persistence. Record Node SQLite and Worker evidence separately, without labeling either as remote acceptance.
 
-## GitHub／remote：只查詢，沒有寫入
+## GitHub/remote: queries only, no writes
 
-查詢時間約 2026-10-04 01:18:27，Asia/Taipei。下列是當次實際證據：
+Lookup time: approximately 2026-10-04 01:18:27, Asia/Taipei. Actual evidence at that time:
 
-| 命令 | exit／結果 |
+| Command | Exit/result |
 | --- | --- |
-| `gh api user --jq '{login:.login,owned_private_repos:.owned_private_repos,public_repos:.public_repos}'` | 0；登入身分 `zhuang768`，public repos 62；private count 為 null，不解讀為 0 |
-| `gh repo view zhuang768/handover-csc-2026 --json nameWithOwner,url,visibility,isPrivate,defaultBranchRef,createdAt,pushedAt` | 1；GraphQL 無法解析該 repository |
-| `gh api -i repos/zhuang768/handover-csc-2026` | 1；HTTP **404 Not Found**；回應 scope 含 `repo`／`workflow`，沒有輸出 access token |
-| `gh repo list zhuang768 --limit 100 --json name,nameWithOwner,isPrivate --jq '.[] \| select(.name == "handover-csc-2026")'` | 0；沒有匹配 repository |
-| `git remote -v` | 0；無輸出，沒有 configured remote |
-| `git config --get-regexp '^remote\..*\.(url\|pushurl)$'` | 1；無匹配 remote config |
-| `git branch --show-current`／`git branch -vv` | `handover`，當次 b3753d7；無 upstream tracking |
+| `gh api user --jq '{login:.login,owned_private_repos:.owned_private_repos,public_repos:.public_repos}'` | 0; authenticated as `zhuang768`, public repos 62; private count null, not interpreted as 0 |
+| `gh repo view zhuang768/handover-csc-2026 --json nameWithOwner,url,visibility,isPrivate,defaultBranchRef,createdAt,pushedAt` | 1; GraphQL could not resolve the repository |
+| `gh api -i repos/zhuang768/handover-csc-2026` | 1; HTTP **404 Not Found**; response scopes included `repo`/`workflow`; no access token printed |
+| `gh repo list zhuang768 --limit 100 --json name,nameWithOwner,isPrivate --jq '.[] \| select(.name == "handover-csc-2026")'` | 0; no matching repository |
+| `git remote -v` | 0; no output or configured remote |
+| `git config --get-regexp '^remote\..*\.(url\|pushurl)$'` | 1; no matching remote config |
+| `git branch --show-current` / `git branch -vv` | `handover`, then b3753d7; no upstream tracking |
 
-以目前 owner session 的 exact REST／GraphQL 與列表查詢，**目前查無目標 repository `zhuang768/handover-csc-2026`**。本代理沒有 create repository、設定 origin、push、提交、部署或更動帳號。正式 release 前可再次唯讀核對此狀態；本次 404 與無 remote 不代表 GitHub 上傳已完成。
+Exact REST/GraphQL/list queries under the owner session found **no target `zhuang768/handover-csc-2026` repository at that time**. This agent did not create it, set origin, push, commit, deploy, or change accounts. Recheck read-only before release; that 404 and missing remote were not completed-upload evidence.

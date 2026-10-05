@@ -1,31 +1,36 @@
 # Cursor supplemental prompt — round 01
 
-補充原本 Handover 任務：使用者已要求 Codex 持續獨立驗收你的成果、直接把缺陷修正 Prompt 送回這個 Cursor chat，並包含 GitHub 上傳。這是協作補充，不是更換任務；請繼續原實作，保留既有資料。
+Historical collaboration prompt, translated into English on 2026-10-05. It records the authorization and workflow at that time, rather than issuing a new external action.
 
-請讀取 /Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/ACCEPTANCE.md，將它與原 Prompt 一起作為驗收清單。Codex 擁有 .codex-review/ACCEPTANCE.md 及其 review 報告，請勿自行把該清單標為通過。
+Supplement to the original Handover task: the user asked Codex to continue independent acceptance, send concrete repair prompts back to this Cursor conversation, and include GitHub upload. This supplements rather than replaces the task. Continue implementation and preserve existing data.
 
-請實際探索可用 Skills（.cursor/skills、.agents/skills、~/.cursor/skills、~/.agents/skills、~/.codex/skills 與工具目錄），在當前工作相關時讀 SKILL.md 並使用。優先 professional-project-starter、design-system/ui-styling/ui-ux-pro-max、workers-best-practices/security-best-practices、tdd/diagnosing-bugs、playwright/agent-browser、ai-debt-detector 及適合現有部署平台的技能。紀錄採用了哪些技能、產生了什麼成果，勿只是列名字；不存在的工具不可假裝使用。無關的技能不需硬套。
+Read `/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/ACCEPTANCE.md` alongside the original prompt. Codex owns the acceptance checklist and review reports; do not mark its checklist passed yourself.
 
-使用者已授權 GitHub 上傳。先完成本機驗收與 secrets 檢查，讓 Codex 獨立驗收後再推送最終成果；保留 focused branch，不 force-push、不刪無關修改。你可以先準備 repo/branch/CI。不要停止在只完成骨架、或以 Known Limitations 掩蓋 P0 缺項。
+Explore actual available skills in `.cursor/skills`, `.agents/skills`, `~/.cursor/skills`, `~/.agents/skills`, `~/.codex/skills`, and tool directories. Read and apply relevant SKILL.md files. Candidate skills include professional-project-starter, design-system/ui-styling/ui-ux-pro-max, workers/security best practices, tdd/diagnosing-bugs, playwright/agent-browser, ai-debt-detector, and the existing deployment platform's guidance. Record concrete use and outcomes, not only names. Do not pretend an unavailable tool was used or force irrelevant skills into the task.
 
-每輪你完成穩定、可供驗收的成果或遇到外部阻礙時，請建立／更新：
-/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/CURSOR_STATUS.json
+GitHub upload was user-authorized. Complete local acceptance and secret checks, then let Codex independently review before pushing the final result. Keep a focused branch; no force-push or deletion of unrelated changes. Repository, branch, and CI preparation may proceed. Do not stop at a skeleton or conceal missing P0 behavior as a known limitation.
 
-格式為 JSON：
+For each stable handback or genuine external blocker, create/update:
+`/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/CURSOR_STATUS.json`.
+
+Example JSON fields:
+
+```json
 {
-  "status": "ready_for_review 或 blocked",
+  "status": "ready_for_review or blocked",
   "round": 1,
-  "updatedAt": "ISO 時間",
-  "projectPath": "實際專案絕對路徑",
-  "gitHead": "若有 Git 的當前完整 SHA，否則 null",
-  "completedRequirements": ["你認為已完成的驗收 ID"],
-  "checks": [{"command":"實際執行命令","exitCode":0,"summary":"實際結果"}],
+  "updatedAt": "ISO timestamp",
+  "projectPath": "actual absolute project path",
+  "gitHead": "current full Git SHA, or null when unavailable",
+  "completedRequirements": ["acceptance IDs believed complete"],
+  "checks": [{"command":"actual command","exitCode":0,"summary":"actual result"}],
   "publicUrl": null,
   "githubUrl": null,
   "knownLimitations": [],
   "blockers": []
 }
+```
 
-開始下一輪實作時改 status 為 working。GitHub 與網址只能填真實且可用的結果；不可把預期 URL 當部署完成。你填的結果只是交接資訊，Codex 仍會自己跑測試與看程式碼。最後在 chat 清楚說本輪可驗收，讓我們能判斷你是否停止修改。
+Set status to working when the next implementation round starts. URLs must be real and usable; an expected hostname does not establish deployment. Status is handoff information, not independent validation: Codex still inspects source and runs checks. Clearly say when the stable result is ready and editing has stopped.
 
-遇到可自行解決的失敗就繼續修正。需要帳號登入、付款、同意條款或無法取得的憑證才列出具體 blocker，並先完成其他獨立工作。不能替使用者按 Devpost 最終提交。
+Continue fixing locally solvable failures. Report specific blockers only when required login, payment, terms, or unavailable credentials prevent progress, and finish unrelated work first. Do not perform the user's final Devpost submission.

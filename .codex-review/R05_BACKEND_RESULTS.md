@@ -1,87 +1,87 @@
-# R05 後端修補與 source 驗證
+# R05 backend repairs and source verification
 
-日期：2026-10-04（臺北）；owned source 最終於 **2026-10-03 18:33:52 UTC** 釋放。Cursor 額度用盡並已停止後，根代理明確授權 Codex 接手可逆 R05 後端修補；本代理未變更 Cursor 設定。初版釋放後，獨立審查確認 partial school 已改 sample lesson 的保留邊界，根代理授權 focused 修正，最終 blob 以下表為準。
+Date: 2026-10-04, Taipei; owned source finally released **2026-10-03 18:33:52 UTC**. After Cursor stopped at its quota, root explicitly authorized Codex's reversible R05 backend repairs. Cursor settings were unchanged. After initial release, independent review confirmed the preservation boundary for edited sample lessons in partial schools; root authorized a focused repair. Final blobs below are authoritative. This is translated historical evidence, not a new execution.
 
-## 改動範圍
+## Scope
 
-僅兩個產品檔案，未 commit、push、部署、重置共享 DB 或操作服務／GUI：
+Only two product files changed; no commit, push, deployment, shared DB reset, service, or GUI operation:
 
-| 檔案 | 釋放 blob SHA |
+| File | Released blob SHA |
 | --- | --- |
 | `handover/server/service.ts` | `145faf7f27e82e44f2e56ea44e4ca33993c47932` |
 | `handover/tests/api.test.ts` | `a43383679244dae8ea2171f682e3e486695d8b13` |
 
-Source 釋放後停止寫產品；其他代理負責前端、E2E 與文件。本報告為修補工作紀錄，**尚非整合固定 SHA 的最終獨立 verdict**。
+Product writes stopped after release. Other agents owned frontend/E2E/docs. This repair record was **not yet the final independent verdict for an integrated pinned SHA**.
 
-## 修正行為
+## Behavior repaired
 
-- 加 `meta.seed_revision=2` 的一次性修復標記。R04 曾把只有一堂課的舊庫寫 `seed_complete=1`，現在仍會走 missing-data repair；新完成標記與全部缺項資料同一 D1 batch，故障不留半套修補。
-- 從既有 demo lesson ID 的原日期推回當初種課週次，合法移課不改 ID，升級不會憑新本週重建另一份舊庫。只補缺少 classes／users／lesson；lesson 的 `WHERE NOT EXISTS(id)` 避免重新 INSERT 已被合法移動的 row，再由 `ON CONFLICT(id) DO NOTHING` 防 concurrent 同 ID。真正其他 teacher slot 衝突仍會 rollback，不以寬泛 ignore 吞掉。
-- 既有 request IDs 整份跳過，不重播其課表／timeline／通知／locks，不動已修改 handover、supplement、todo 或 view。Missing sample request 取得本次新 UUID token，其初始副作用以 `id AND transition_token` 在同 batch gating，並行 caller 的敗方不重複寫成功事件或回復勝方已成立安排。
-- Missing sample 的來源 lesson 若已偏離原 seed baseline，保留其現有 teacher／date／period／room，補入 inactive `Cancelled` 示範 request，original／target snapshot 都取真正現有安排；不製造假的 confirmed／completed 事件、學生改課通知或 locks，也不重播模板覆寫已成立課堂。未修改的 missing lesson／sample 仍建立原 default states。
-- 材料修復只對已知七個 seed sample IDs、`is_demo=1`、精確原 `Practice worksheet`＋`https://example.org/worksheet`、只有原 `title/url` 欄位的 material item 生效。替換成已提供的 `/worksheets/class-practice.txt`，保留其他交接欄位／教材。UPDATE 以原 `handover_json` CAS 防止重寫同時修改；普通教師的相同 title／URL及 demo 教師已改 title 都保留。升級標記讓修復冪等。
+- Add one-time `meta.seed_revision=2`. R04 falsely complete one-lesson schools still enter repair. Missing data and new completion markers share one D1 batch; faults leave no partial repair.
+- Infer original seed week from immutable existing demo lesson IDs. Legal moves retain IDs, so upgrade does not create another current-week school. Add only missing classes/users/lessons. `WHERE NOT EXISTS(id)` avoids reinserting legally moved lessons; `ON CONFLICT(id) DO NOTHING` handles concurrent identical IDs. Other teacher-slot conflicts still roll back without broad ignore.
+- Skip entire existing request IDs. Never replay their timetable/timeline/notifications/locks or edit handovers/supplements/todos/views. Missing samples get fresh UUID tokens. Same-batch `id AND transition_token` gates initial effects; concurrent losers cannot duplicate events or restore over a winner's arrangements.
+- If a missing sample's existing lesson differs from seed baseline, preserve teacher/date/period/room and insert an inactive `Cancelled` sample with original/target snapshots of the actual current arrangement. No fake confirmed/completed events, student notifications, locks, or template overwrite. Unchanged missing lessons/samples retain default states.
+- Material repair targets only seven known sample IDs, `is_demo=1`, exact `Practice worksheet` plus `https://example.org/worksheet`, and items containing only title/url. Replace with owned `/worksheets/class-practice.txt`; preserve other materials/fields. Original handover_json CAS protects concurrent edits. Ordinary same-title/URL and renamed demo items remain. Revision makes repair idempotent.
 
-使用 workers-best-practices，已查閱 [D1 batch 官方文件](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch) 與 [Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/)；沒有加套件、外部服務、migration DDL 或 auth／permissions 變更。D1 transaction 採既有 prepared SQL＋batch 模式。
+Used workers-best-practices and read [D1 batch](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch)/[Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/). No dependencies, external services, migration DDL, auth, or permission changes. Transactions use established prepared SQL/batch.
 
-## 產品回歸
+## Product regressions
 
-新增兩個 focused top-level API cases，產品 API 24→26 計數；reviewer suite 保持 85：
+Two focused top-level API cases were added: 24→26; reviewer suite remains 85.
 
-1. **一 lesson 舊庫原子補齊與成立安排保留**：第一階段包含 R04 假完成 marker、edited demo profile／retained room、正常註冊帳戶與有效 session。真正 SQLite missing-lesson INSERT 故障後要求整批資料與修復 marker rollback；解除 fault 後四個平行 caller 都 200，完整三班／45 demo＋1 real users／120 lessons／7 samples、14 timeline／14 notifications／4 locks，无重複效果，credentials/session／既有 row 保留；再呼叫冪等。同一 top-level 的第二階段保留最初 20 lessons、missing sample 全無，以真正 teacher API 完成 move→submit→accept→Completed→supplement；改日期一週、節次及教室後才觸發 legacy repair。要求原 20 lesson 全 row、真正 request／timeline／supplement／notifications 不變；missing confirmed 模板補为 Cancelled、original／target snapshot 對應已成立安排，無假的成功事件／locks，完整 120 lessons／7 demo＋1 established requests。
-2. **教材精準修復**：known demo 原模板教材替換；同 handover 其他自由教材、progress／private notes 保留。普通真註冊教師透過真正 API 自建 Draft，刻意用相同 default title／URL，也保留全 row。另一 known demo 改 title 的教材保留全 row；再次呼叫不寫資料。credentials／session 未輸出且保持不變。
+1. **One-lesson atomic repair and established-arrangement preservation:** phase 1 includes R04 false completion, edited profile/retained room, ordinary registration/valid session. A real missing-lesson INSERT fault must roll back data/repair markers. After removing it, four parallel callers all return 200: 3 classes/45 demo + 1 real users/120 lessons/7 samples/14 timeline/14 notifications/4 locks, no duplicates, credentials/session/existing rows preserved; retry is idempotent. Phase 2 in the same top-level case retains the first 20 lessons without samples. Actual teacher API move→submit→accept→Completed→supplement changes date by one week, period, and room before legacy repair. Require all 20 lesson rows and established request/timeline/supplement/notifications unchanged. Missing Confirmed template becomes Cancelled with accurate original/target and no fake events/locks; final 120 lessons/7 demo + 1 established requests.
+2. **Narrow material repair:** replace known original stub while preserving custom materials/progress/private notes. An actual ordinary teacher registers and creates a Draft through the API with the same title/URL; full row survives. Another known demo with an edited title remains unchanged. Repeat call makes no writes; credentials/sessions remain unprinted and unchanged.
 
-## 實跑命令
+## Commands actually run
 
-| 命令 | exit | 結果 |
+| Command | Exit | Result |
 | --- | --- | --- |
-| `node --experimental-strip-types --test --test-name-pattern='one-lesson legacy school' tests/api.test.ts`，補產品 preservation 斷言、修 source 前負對照 | **1** | **1 fail**；原修法把真正成立安排的 teacher0→1、period5→4、roomEstablished→A201，確認具體覆寫，不是推測 |
-| `node --experimental-strip-types --test tests/api.test.ts`（handover 根目錄，最終 focused 修正／格式後） | **0** | **26／26 pass，0 fail／skip／cancelled**，390.505458 ms |
-| `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts`（repo 根，最終 focused 修正後） | **0** | **85／85 pass，0 fail／skip／cancelled**，1414.662 ms；既有斷言未改 |
-| `node node_modules/prettier/bin/prettier.cjs --check server/service.ts tests/api.test.ts` | 0 | owned files 格式通過 |
-| `node node_modules/eslint/bin/eslint.js server/service.ts tests/api.test.ts` | 0 | owned files lint 通過 |
-| 下列 targeted `tsc --noEmit` | 0 | owned backend/API tests 型別通過 |
-| `git diff --check -- handover/server/service.ts handover/tests/api.test.ts` | 0 | 無 whitespace error |
+| `node --experimental-strip-types --test --test-name-pattern='one-lesson legacy school' tests/api.test.ts`, new preservation assertion before fix | **1** | **1 fail**; initial repair changed actual teacher0→1, period5→4, established room→A201, proving overwrite |
+| `node --experimental-strip-types --test tests/api.test.ts`, handover CWD, final repair/format | **0** | **26/26 pass, 0 fail/skip/cancelled**, 390.505458 ms |
+| `node --experimental-strip-types --test .codex-review/reviewer-harness.test.mts .codex-review/independent-api.test.mts`, repo CWD, final repair | **0** | **85/85 pass, 0 fail/skip/cancelled**, 1414.662 ms; existing assertions unchanged |
+| `node node_modules/prettier/bin/prettier.cjs --check server/service.ts tests/api.test.ts` | 0 | Owned formatting passed |
+| `node node_modules/eslint/bin/eslint.js server/service.ts tests/api.test.ts` | 0 | Owned lint passed |
+| Targeted tsc below | 0 | Owned backend/API types passed |
+| `git diff --check -- handover/server/service.ts handover/tests/api.test.ts` | 0 | No whitespace errors |
 
 ```sh
 node handover/node_modules/typescript/bin/tsc --noEmit --module ESNext --moduleResolution Bundler --target ES2022 --allowImportingTsExtensions --skipLibCheck --typeRoots handover/node_modules/@types --types node handover/server/service.ts handover/tests/api.test.ts handover/node_modules/@cloudflare/workers-types/index.d.ts
 ```
 
-最終 focused 修正之後 26 API、85 suite、owned format／lint／types 都已再跑全綠，無新增 reviewer counts。根代理會整合 frontend／docs 並執行全套格式、lint、型別、build、E2E、Worker，以及固定 tree 的 reviewer suite；不沿用本輪 working source 作正式發布 verdict。
+After final focused repair, 26 API/85 reviewer/owned format/lint/types were rerun green, with no extra reviewer counts. Root would integrate frontend/docs and run full format/lint/types/build/E2E/Worker/pinned review. This working-source result was not a release verdict.
 
-## Snapshot 至 batch 之間的正常 API 並行保護
+## Normal API concurrency between snapshot and batch
 
-根代理與本代理都核對真正 `handleApi`：在任何路由／session 或業務 mutation 前先 `await seedIfEmpty(db)`。因此沒有新 API 路由可以跳過 readiness repair 先改 lesson。
+Root and this agent verified actual handleApi awaits `seedIfEmpty(db)` before any route/session/business mutation. No current API can edit lessons before its readiness repair.
 
-若 B 在 A 收集 legacy snapshot 後先完成 repair，B 的單一 batch 已建立同一 known sample IDs、B 唯一 token 與 completion／revision，然後才能開始自己的合法 mutation。A 的 batch 即使更晚送出，其 request `WHERE NOT EXISTS(id)` 不會插入勝方已存在的 sample；A 的 lesson／timeline／notify SQL 用 A 唯一 token gating，全部零效果。B 後續合法改 lesson 或旋轉 request token，也不會變成 A 的 token。若 B 開頭已 schoolReady，代表某修補 batch 之前已完成，A 同樣是 token 敗方。完整舊 sample 則在收集時就全部跳過。
+If B finishes repair after A's snapshot but before A's batch, B's atomic batch establishes the same known sample IDs, B's unique token, and completion/revision before B's legal mutation. A's later batch cannot insert existing IDs. A's lesson/timeline/notify SQL requires A's token and has zero effects. B's later lesson mutation/token rotation cannot produce A's token. If B starts schoolReady, an earlier repair already finished and A is likewise a token loser. Existing samples are skipped during collection.
 
-因此沿用原子 batch、same sample ID 與唯一 token 即可保護這個已授權 current API 序列，沒有為假想外部 DB writer／混版本直接寫入新增 CAS 或新 gate。根代理明確指示保持已釋放 source，不擴 schema／auth／reviewer tests。
+Atomic batches, same sample IDs, and unique tokens protect this authorized current API sequence. No extra CAS/gates for hypothetical external DB writers or mixed-version direct writes were added. Root explicitly requested source freeze and no schema/auth/reviewer test expansion.
 
-## 歷史 probe 邊界
+## Historical probe limits
 
-保存的 [historical-upgrade-probe.mts](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/historical-upgrade-probe.mts) 仍是三個相同 probe、相同業務斷言，不增加 85 計數。最初存檔使用 TS parameter property，與 native strip 模式不相容；只把 Statement constructor 的參數屬性改成顯式 fields，沒有改 assertions／adapter semantics。根代理已確認此純執行格式修正合理。
+Saved [historical-upgrade-probe.mts](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/historical-upgrade-probe.mts) retains the same three probes/business assertions, separate from 85 counts. Initial saved TS parameter properties were incompatible with native stripping; only Statement constructor became explicit fields, without assertion/adapter semantic changes. Root accepted this execution-format fix.
 
-歷史三 probe 尚待整合固定候選與乾淨 source：
+Three probes awaited the integrated pinned candidate and clean source:
 
 ```sh
-REVIEW_APP_TREE=<固定HEAD:handover> node --experimental-strip-types --test .codex-review/historical-upgrade-probe.mts
+REVIEW_APP_TREE=<PINNED_HEAD:handover> node --experimental-strip-types --test .codex-review/historical-upgrade-probe.mts
 ```
 
-本 report 不將它們未跑的新 source 結果宣稱通過。原 R04 stdin 的三個真歷史結果仍在 [R04_HISTORICAL_PROBE_OUTPUT.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/R04_HISTORICAL_PROBE_OUTPUT.md)（1 pass／2 fail），不能改成新 pass。
+This record does not claim unexecuted new-source passes. Actual R04 stdin 1 pass/2 fail remains in [R04_HISTORICAL_PROBE_OUTPUT.md](/Users/zhuangzijin/Desktop/01_CSC_Back_to_School_Hackathon/.codex-review/R04_HISTORICAL_PROBE_OUTPUT.md), not rewritten as pass.
 
-### 後存 wrapper baseline guard 誤報稽核
+### Saved-wrapper baseline-guard false-positive audit
 
-固定 R05 候選為 `9538135128b95cf2d14db9f154d7aac53ba86e46`、app tree `f611d50eaaa655e955d8ac113f7b55bd41cae6f3`。根代理首跑保存版三 probe，都停在 raw 0000 string equality guard，**尚未進入升級後的三個業務驗收**；不能把這三個 wrapper failures 當作已重現本輪產品缺陷。
+Pinned R05: `9538135128b95cf2d14db9f154d7aac53ba86e46`, tree `f611d50eaaa655e955d8ac113f7b55bd41cae6f3`. Root's initial saved three-probe run stopped at raw 0000 equality **before all three upgrade business checks**. Wrapper failures were not reproduced product defects.
 
-歷史 R02 `0000_init.sql` 有空白分隔行，R03／R05 只將其中 **13** 行換成 Drizzle 的 `--> statement-breakpoint` parser comments；真正 table、column、index、constraint DDL 都未變。根代理只將兩方 `sql.replace(/^--> statement-breakpoint$/gm, '')` 後作 strict equality；保留原 newline，沒有 normalize 空白、大小寫、SQL 語句或其他註解，也沒有改三個原業務 assertions。
+R02 blank separator lines became **13** Drizzle `--> statement-breakpoint` parser comments in R03/R05. Actual table/column/index/constraint DDL was unchanged. Root compared both strings after `sql.replace(/^--> statement-breakpoint$/gm, '')`, preserving newlines and all other whitespace/case/SQL/comments/business assertions.
 
-本代理於 **2026-10-03 18:41:23 UTC** 唯讀核對固定 HEAD／tree／產品 CI clean，git diff 確認只上述 marker 行。本代理的獨立 stdin 字串 probe **exit 0**，結果：
+At **2026-10-03 18:41:23 UTC**, this agent read-only verified pinned HEAD/tree/product CI clean and marker-only diff. Independent stdin string probe **exit 0**:
 
 ```json
 {"rawEqual":false,"normalizedEqual":true,"legacyMarkerCount":0,"candidateMarkerCount":13,"normalizedBytes":3849,"normalizedSha256":"d354f114786516e6b7e1d7859dcef5a556d1d6d01b5f6528e9eb8b76e2515c08","realDDLChangeRejected":true}
 ```
 
-最後一項 negative control 只在記憶體字串將 teacher unique index 的 period 欄移除，修正後 equality 仍確實拒絕該真 DDL 差異。因此這是移除已證實無 schema 意義的唯一 parser marker，**不是弱化業務驗收／允許 DDL rewrite**。本代理沒有改保存 probe、產品或測試。
+Negative control removed period from the teacher unique index only in memory; strict comparison still rejected that real DDL change. Removing one proven schema-irrelevant parser marker **does not weaken business acceptance or allow DDL rewrite**. This agent changed no probe/product/tests.
 
-本代理首次核對誤把 marker 的 newline 一起刪除，留下與 R02 的空白分隔行差異而 exit 1；改用根代理保存版的精確 regex（只去 marker 文字、保留 newline）即上述 exit 0。這個 reviewer string-normalization 錯誤不列為產品缺陷。
+Initial independent normalization also removed marker newlines, causing separator inequality/exit 1. Root's exact newline-preserving regex produced exit 0 above. That reviewer string-normalization mistake is not a product defect.
 
-截至本段紀錄，本代理只核對 wrapper guard；修正 guard 後的真正三 probe 由根代理重跑，實際 pass／fail 以該次完整業務輸出為準，不從 normalization pass 推定 API pass。
+At this record's end, this agent verified only the wrapper guard. Root would rerun actual business probes; their verdict requires full business output, not inference from normalization pass.
